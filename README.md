@@ -1,210 +1,110 @@
-# Autonomous AI Engineering Digest → Telegram
+# Telegram Publisher — mobile-friendly
 
-Полностью автономный pipeline:
+Этот вариант вообще не использует OpenAI API.
+
+Схема:
 
 ```text
-GitHub Actions schedule
+ChatGPT на телефоне
         ↓
-OpenAI Responses API + Web Search
+копируете готовый Telegram-пост
         ↓
-AI Engineering Digest
-        ├── полный выпуск → digests/YYYY-MM-DD.md
-        └── Telegram preview → telegram.md
-        └── Telegram payload MarkdownV2 → telegram.json
+GitHub → telegram-draft.md → Edit
+        ↓
+Paste → Commit
+        ↓
+GitHub Actions
         ↓
 Telegram Bot API
         ↓
 Telegram-канал
-        ↓
-state/latest.json
-        ↓
-следующий выпуск знает дату и предыдущие темы
 ```
 
-Своего сервера не требуется.
+## Один раз настроить GitHub
 
-## Что нужно настроить
+### Secret
 
-### 1. OpenAI API key
-
-Создайте API key в OpenAI API Platform.
-
-В GitHub:
-
-`Settings → Secrets and variables → Actions → Secrets → New repository secret`
-
-Создайте secret:
-
-```text
-OPENAI_API_KEY
-```
-
-Значение — ваш OpenAI API key.
-
-Важно: подписка ChatGPT и использование OpenAI API тарифицируются отдельно.
-
-### 2. Telegram token
-
-Создайте secret:
+`Settings → Secrets and variables → Actions → Secrets`
 
 ```text
 TELEGRAM_BOT_TOKEN
 ```
 
-Бот должен быть администратором Telegram-канала и иметь право Post Messages.
+Используйте новый Telegram bot token.
 
-Если прежний bot token уже публиковался в переписке, перевыпустите его через BotFather.
-
-### 3. Telegram chat ID
+### Variable
 
 `Settings → Secrets and variables → Actions → Variables`
-
-Создайте repository variable:
 
 ```text
 TELEGRAM_CHAT_ID=-1003337129017
 ```
 
-### 4. Модель OpenAI
+## Как публиковать с телефона
 
-Опционально создайте repository variable:
+1. Откройте GitHub в браузере на телефоне.
+2. Откройте репозиторий.
+3. Откройте `telegram-draft.md`.
+4. Нажмите кнопку редактирования.
+5. Удалите старый текст.
+6. Вставьте Telegram-пост из ChatGPT.
+7. Нажмите `Commit changes`.
+8. GitHub Actions автоматически запустит публикацию.
+9. После успешной отправки копия поста сохранится в `published/`.
+
+## Markdown
+
+Можно писать обычный удобный Markdown:
+
+```md
+**AI Engineering Digest**
+
+**1. Self-Evolving Coding Agents**
+
+Что произошло...
+
+`Agent → MR → Review → Skill`
+
+[Исследование](https://example.com)
+```
+
+Скрипт сам преобразует его в Telegram MarkdownV2 и экранирует специальные символы.
+
+Поддерживаются:
+
+- `**жирный текст**`
+- `` `inline code` ``
+- `[ссылка](https://...)`
+
+Обычный текст автоматически экранируется под Telegram MarkdownV2.
+
+## Длинные посты
+
+Telegram ограничивает длину одного сообщения.
+
+Скрипт автоматически разбивает длинный пост примерно по 3500 символов и отправляет несколько сообщений подряд.
+
+## Архив
+
+После каждой успешной публикации создаётся файл:
 
 ```text
-OPENAI_MODEL=gpt-5.6-terra
+published/
+  2026-08-15_14-52-03_a12bc34d.md
 ```
 
-Если переменной нет, используется `gpt-5.6-terra`.
+Так можно видеть историю всех реально опубликованных сообщений.
 
-Модель выбирается отдельно от промпта, поэтому её можно менять без изменения кода.
+## Как полностью остановить публикацию
 
-## Первый запуск
+`GitHub → Actions → Publish Telegram Draft → ... → Disable workflow`
 
-Откройте:
+Либо удалить trigger по `push` из `.github/workflows/publish.yml`.
 
-`Actions → Generate and publish AI Engineering Digest → Run workflow`
+## Важно
 
-Параметр `publish`:
+Любой commit в `main`, который изменяет `telegram-draft.md`, означает:
 
-- `true` — сгенерировать и отправить в Telegram;
-- `false` — только сгенерировать и сохранить результат.
+**опубликовать содержимое файла в Telegram.**
 
-Для первой проверки разумно сначала использовать `publish=false`.
-
-После генерации появятся:
-
-```text
-digests/YYYY-MM-DD.md   полный выпуск
-telegram.md             человекочитаемый preview
-telegram.json           готовые сообщения Telegram MarkdownV2
-state/latest.json       состояние предыдущих выпусков
-```
-
-После проверки запустите ещё раз с `publish=true`.
-
-## Автоматическое расписание
-
-Workflow настроен на:
-
-```text
-понедельник, 09:00, Europe/Berlin
-```
-
-Файл:
-
-```text
-.github/workflows/digest.yml
-```
-
-Настройка:
-
-```yaml
-schedule:
-  - cron: "0 9 * * 1"
-    timezone: "Europe/Berlin"
-```
-
-## Как исключаются повторы
-
-`state/latest.json` содержит:
-
-- время последнего успешного выпуска;
-- период предыдущего выпуска;
-- до 100 уже опубликованных заголовков;
-- последние источники.
-
-Следующий prompt получает эту информацию и должен включать только события после предыдущего запуска либо существенные новые развития старой темы.
-
-## Где менять правила дайджеста
-
-Весь редакционный prompt находится здесь:
-
-```text
-config/digest-prompt.md
-```
-
-Можно менять:
-- компании;
-- приоритеты;
-- структуру;
-- стиль Telegram-поста;
-- требования к источникам;
-- количество практических рекомендаций.
-
-## Почему используется Web Search OpenAI
-
-Responses API позволяет подключить встроенный `web_search` tool. Поэтому GitHub Action не содержит собственного crawler/search-engine и не требует отдельных Bing/Google API keys.
-
-## Telegram
-
-Telegram `sendMessage` поддерживает `parse_mode=MarkdownV2`.
-
-Модель сразу генерирует 2–4 самостоятельных сообщения длиной до 3500 символов.
-Каждое сообщение должно быть валидным Telegram MarkdownV2 и не содержать
-форматирование, разорванное между частями.
-
-`scripts/send_telegram.py` читает `telegram.json` и отправляет сообщения
-с `parse_mode=MarkdownV2`.
-
-Это позволяет использовать:
-- **жирный текст**;
-- *курсив*;
-- inline code и code blocks;
-- кликабельные ссылки;
-- цитаты.
-
-`telegram.md` остаётся preview-файлом для просмотра результата человеком.
-
-## Структура проекта
-
-```text
-.
-├── .github/
-│   └── workflows/
-│       └── digest.yml
-├── config/
-│   └── digest-prompt.md
-├── digests/
-├── scripts/
-│   ├── generate_digest.py
-│   └── send_telegram.py
-├── state/
-│   └── latest.json
-├── telegram.md
-├── telegram.json
-├── requirements.txt
-└── README.md
-```
-
-## Что происходит при ошибке
-
-Если OpenAI API или Telegram API возвращает ошибку, job завершается ошибкой.
-
-Состояние и новый digest коммитятся только после успешной публикации (либо после генерации при ручном запуске с publish=false — шаг публикации пропущен, а артефакты коммитятся).
-
-Таким образом следующий scheduled run не должен считать неуспешную публикацию завершённым выпуском.
-
-## Стоимость
-
-Основная стоимость — вызов OpenAI API с web search и генерацией полного дайджеста. GitHub Actions для небольшого weekly workflow обычно потребляет лишь несколько минут runner time.
-
-Для уменьшения стоимости можно поменять `OPENAI_MODEL` на более экономичную модель, если она поддерживает web search и даёт приемлемое качество.
+Поэтому не редактируйте этот файл для черновика, если не хотите сразу публиковать.

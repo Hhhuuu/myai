@@ -3,42 +3,103 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
 import urllib.request
 
-TELEGRAM_MAX = 4096
+SAFE_LIMIT = 3500
 
 
-def load_payload(path: str) -> tuple[str, list[str]]:
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+def escape_markdown_v2(text: str) -> str:
+    # Preserve only very simple authoring conventions from telegram-draft.md:
+    # **bold** -> *bold*
+    # `code` -> `code`
+    # [text](url) -> [text](url)
+    #
+    # Everything else is escaped for Telegram MarkdownV2.
 
-    parse_mode = data.get("parse_mode", "MarkdownV2")
-    messages = data.get("messages", [])
+    placeholders = {}
 
-    if not isinstance(messages, list) or not messages:
-        raise SystemExit("telegram.json does not contain messages")
+    def stash(value: str) -> str:
+        key = f"@@PH{len(placeholders)}@@"
+        placeholders[key] = value
+        return key
 
-    for i, message in enumerate(messages, start=1):
-        if not isinstance(message, str) or not message.strip():
-            raise SystemExit(f"Message {i} is empty or invalid")
-        if len(message) > TELEGRAM_MAX:
-            raise SystemExit(
-                f"Message {i} is {len(message)} chars; Telegram limit is {TELEGRAM_MAX}"
-            )
+    # Links first.
+    def link_repl(m):
+        label = m.group(1)
+        url = m.group(2)
+        esc_label = re.sub(r'([_*\[\]()~`>#+\-=|{}.!])', r'\\\1', label)
+        esc_url = url.replace("\\", "\\\\").replace(")", "\\)")
+        return stash(f"[{esc_label}]({esc_url})")
 
-    return parse_mode, messages
+    text = re.sub(r'\[([^\]]+)\]\((https?://[^)]+)\)', link_repl, text)
+
+    # Inline code.
+    def code_repl(m):
+        code = m.group(1).replace("\\", "\\\\").replace("`", "\\`")
+        return stash(f"`{code}`")
+
+    text = re.sub(r'`([^`\n]+)`', code_repl, text)
+
+    # Bold from standard Markdown **text**.
+    def bold_repl(m):
+        inner = re.sub(r'([_*\[\]()~`>#+\-=|{}.!])', r'\\\1', m.group(1))
+        return stash(f"*{inner}*")
+
+    text = re.sub(r'\*\*(.+?)\*\*', bold_repl, text)
+
+    # Escape remaining Telegram MarkdownV2 special chars.
+    text = re.sub(r'([_*\[\]()~`>#+\-=|{}.!])', r'\\\1', text)
+
+    # Restore protected constructs.
+    for key, value in placeholders.items():
+        text = text.replace(key, value)
+
+    return text
 
 
-def send(token: str, chat_id: str, text: str, parse_mode: str) -> int:
+def split_text(text: str, limit: int = SAFE_LIMIT) -> list[str]:
+    paragraphs = text.strip().split("\n")
+    chunks, current = [], []
+
+    for paragraph in paragraphs:
+        candidate = "\n".join(current + [paragraph]) if current else paragraph
+
+        if len(candidate) <= limit:
+            current.append(paragraph)
+            continue
+
+        if current:
+            chunks.append("\n".join(current).strip())
+            current = []
+
+        remaining = paragraph
+        while len(remaining) > limit:
+            cut = remaining.rfind(" ", 0, limit)
+            if cut < limit // 2:
+                cut = limit
+            chunks.append(remaining[:cut].strip())
+            remaining = remaining[cut:].strip()
+
+        if remaining:
+            current = [remaining]
+
+    if current:
+        chunks.append("\n".join(current).strip())
+
+    return [c for c in chunks if c]
+
+
+def send(token: str, chat_id: str, text: str) -> int:
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = json.dumps(
         {
             "chat_id": chat_id,
             "text": text,
-            "parse_mode": parse_mode,
+            "parse_mode": "MarkdownV2",
             "disable_web_page_preview": True,
         },
         ensure_ascii=False,
@@ -65,6 +126,9 @@ def send(token: str, chat_id: str, text: str, parse_mode: str) -> int:
 
 
 def main() -> None:
+    if len(sys.argv) != 2:
+        raise SystemExit("Usage: send_telegram.py <draft.md>")
+
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
 
@@ -72,16 +136,17 @@ def main() -> None:
         raise SystemExit("TELEGRAM_BOT_TOKEN is not configured")
     if not chat_id:
         raise SystemExit("TELEGRAM_CHAT_ID is not configured")
-    if len(sys.argv) != 2:
-        raise SystemExit("Usage: send_telegram.py <telegram.json>")
 
-    parse_mode, messages = load_payload(sys.argv[1])
-    print(f"Publishing {len(messages)} Telegram message(s) using {parse_mode}")
+    raw = open(sys.argv[1], "r", encoding="utf-8").read().strip()
+    rendered = escape_markdown_v2(raw)
+    chunks = split_text(rendered)
 
-    for i, message in enumerate(messages, start=1):
-        message_id = send(token, chat_id, message, parse_mode)
-        print(f"Sent {i}/{len(messages)} message_id={message_id}")
-        if i < len(messages):
+    print(f"Publishing {len(chunks)} Telegram message(s)")
+
+    for i, chunk in enumerate(chunks, start=1):
+        message_id = send(token, chat_id, chunk)
+        print(f"Sent {i}/{len(chunks)} message_id={message_id}")
+        if i < len(chunks):
             time.sleep(1)
 
 
