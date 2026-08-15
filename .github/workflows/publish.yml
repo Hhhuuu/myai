@@ -3,7 +3,7 @@ name: Publish Telegram Draft
 on:
   push:
     branches:
-      - main
+      - master
     paths:
       - telegram-draft.md
   workflow_dispatch:
