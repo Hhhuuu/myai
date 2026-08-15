@@ -1,5 +1,6 @@
 🤖 AI Engineering Digest — Context Engineering, SDD и AI Code Review
 
+
 Главный тренд этого выпуска: AI Engineering всё меньше про выбор лучшей модели и всё больше про правильную организацию контекста и процесса вокруг агента.
 
 1. Большой AGENTS.md — не решение всех проблем
