@@ -1,0 +1,64 @@
+name: Generate and publish AI Engineering Digest
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish generated Telegram digest"
+        required: true
+        default: true
+        type: boolean
+  schedule:
+    - cron: "0 9 * * 1"
+      timezone: "Europe/Berlin"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ai-engineering-digest
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate digest with OpenAI web search
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-5.6-terra' }}
+        run: python scripts/generate_digest.py
+
+      - name: Publish to Telegram
+        if: ${{ github.event_name == 'schedule' || inputs.publish }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ vars.TELEGRAM_CHAT_ID }}
+        run: python scripts/send_telegram.py telegram.json
+
+      - name: Commit digest history and state
+        run: |
+          git config user.name "ai-engineering-digest-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add digests/ state/latest.json telegram.md telegram.json
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+          else
+            git commit -m "chore: publish AI Engineering Digest $(date -u +%Y-%m-%d)"
+            git push
+          fi
