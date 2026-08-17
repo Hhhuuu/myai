@@ -1,230 +1,250 @@
-🤖 AI Engineering Digest — Context Engineering, SDD и AI Code Review
+🤖 AI Engineering Digest — главное за неделю
 
+На этой неделе главный тренд не про очередную новую модель. Гораздо интереснее другое: вокруг AI-агентов начинает формироваться полноценная платформенная инфраструктура.
 
-Главный тренд этого выпуска: AI Engineering всё меньше про выбор лучшей модели и всё больше про правильную организацию контекста и процесса вокруг агента.
+MCP Gateway, policy engine, Agent Run, observability, cost control — всё это начинает выглядеть как отдельный слой современной engineering platform.
 
-1. Большой AGENTS.md — не решение всех проблем
+1. MCP постепенно превращается в полноценную платформу
 
-Появились исследования, показывающие интересную вещь: большой объём заранее переданного контекста сам по себе не гарантирует более качественный результат coding agent.
+На MCP Dev Summit Seoul обсуждали уже не столько «как написать MCP server», сколько эксплуатационные вопросы: MCP Gateway, безопасность, управление токенами, multi-agent systems и production operations.
 
-Проблема часто не в том, что агенту «не рассказали про проект», а в том, что он:
+И это закономерная эволюция.
 
-— не нашёл нужный файл;
-— выбрал неправильный компонент;
-— не увидел зависимость;
-— не понял архитектурное ограничение;
-— получил слишком много нерелевантного контекста.
+Когда MCP-серверов три:
 
-Поэтому появляется более зрелый подход:
+Agent → Jira / Confluence / GitLab
 
-минимальный AGENTS.md → поиск контекста под задачу → Context Package → Plan → Code
+всё довольно просто.
 
-В AGENTS.md остаются только постоянные правила:
+Когда их 30–50, появляется другая архитектура:
 
-— как собирать проект;
-— что запрещено менять;
-— Definition of Done;
-— архитектурные ограничения;
-— где искать дополнительную информацию.
+Agent → MCP Gateway → Jira / Confluence / GitLab / Logs / Metrics / Product Catalog
 
-А Jira, Confluence, ADR, код, тесты и историю изменений агент получает динамически.
+Gateway уже может отвечать за:
 
-⭐ Практическая ценность: 5/5
-🔥 Стоит пробовать сейчас
+— authentication;
+— discovery;
+— routing;
+— audit;
+— rate limits;
+— versioning;
+— token budgets;
+— permissions.
 
-2. Context Retrieval становится отдельным инженерным слоем
+Например, Review Agent получает:
 
-Появился Agent Retrieval Bench — benchmark именно для проверки способности агента найти правильный инженерный контекст.
+Jira.read → ALLOW
+Confluence.read → ALLOW
+GitLab.code.read → ALLOW
+GitLab.push → DENY
 
-Это важный сдвиг.
-
-Обычно мы измеряем:
-
-получилась задача или нет
-
-Теперь можно отдельно измерять:
-
-нашёл ли агент правильные файлы и документы
-
-Например, задача:
-
-После reconnect CAN-устройства перестают приходить сообщения
-
-Context Agent должен найти:
-
-— Jira issue;
-— продукт и владельца;
-— ADR про reconnect;
-— реализацию state machine;
-— receive loop;
-— существующие reconnect tests;
-— зависимые компоненты.
-
-И только потом передать Coding Agent компактный Context Package.
+А Release Agent — совершенно другой набор прав.
 
 ⭐ Практическая ценность: 5/5
+📈 Зрелость: раннее внедрение → становится стандартом
 
-3. Поиск контекста можно отделить от Coding Agent
+2. Появляется архитектура Meta-Harness
 
-Очень интересный архитектурный паттерн:
+Интересная идея развивается вокруг Databricks Omnigent: не привязывать внутреннюю AI-платформу непосредственно к Codex, Claude Code или Cursor.
 
-Context Agent → Planning Agent → Coding Agent → Review Agent
+Вместо:
 
-Context Agent вообще не пишет код.
+Наш процесс → Codex
 
-Его задача — ответить:
+строить:
 
-Где находится нужная реализация?
+Наш процесс → Agent Platform → Codex / Claude / другие agents
 
-Какие компоненты затронуты?
+А над конкретным runtime держать едиными:
 
-Какие ADR относятся к задаче?
+Context + Skills + MCP + Policies + Observability + Evals
 
-Какие тесты существуют?
+Тогда завтра можно поменять coding agent, не переписывая release process, security policies и интеграции.
 
-Какие похожие изменения уже делались?
+Например, есть Release Agent:
 
-После этого формируется примерно такой пакет:
+Task → Context → Dependency Graph → Release Plan → Jira/GitLab → Approval
 
-Task + Acceptance Criteria + Relevant Code + Tests + Architecture Constraints + Dependencies
+Сегодня executor — Codex.
 
-И уже его получает Coding Agent.
+Завтра benchmark показывает, что Claude лучше справляется с такими задачами.
 
-Это особенно интересно для больших multirepo-систем.
+Меняем executor, а весь workflow остаётся прежним.
 
 ⭐ Практическая ценность: 5/5
 🧪 Зрелость: раннее внедрение
 
-4. AI Code Review начинает получать корпоративный контекст
+3. Permissions пора выносить из prompt
 
-GitHub Copilot Code Review получил возможность использовать Skills и MCP.
+Очень важный security-паттерн становится всё заметнее.
 
-Это значит, что AI reviewer может смотреть уже не только на diff.
+Недостаточно написать агенту:
 
-Через read-only MCP ему потенциально можно дать:
+Never push directly to main.
 
-— Jira;
-— Confluence;
-— ADR;
-— API contracts;
-— Product Catalog;
-— документацию компонента.
+LLM не должен самостоятельно определять границы собственных полномочий.
 
-Тогда review становится намного интереснее.
+Правильнее:
 
-Например, код выглядит корректно:
+Agent proposes action → Policy Engine → ALLOW / DENY / APPROVAL
 
-queue.push(metric)
+Например:
 
-Но в ADR написано:
+read repository → ALLOW
+create feature branch → ALLOW
+push feature/* → ALLOW
+push develop → APPROVAL
+push main → DENY
+create production release → APPROVAL
 
-Очередь ограничена 10 000 элементами. При заполнении новая метрика должна быть отброшена, а metrics_dropped_total увеличен.
-
-Обычный AI review может ничего не заметить.
-
-Context-aware reviewer сможет сказать:
-
-Изменение нарушает ADR-42: отсутствует обработка заполненной очереди.
+То есть автономность определяется не для агента целиком, а для конкретного действия и уровня риска.
 
 ⭐ Практическая ценность: 5/5
-🔥 Очень интересный сценарий для платформенных команд
+📈 Зрелость: становится стандартом
 
-5. Параллельным агентам нужны отдельные рабочие пространства
+4. Agent Observability становится отдельной дисциплиной
 
-VS Code начал развивать работу coding agents через отдельные Git worktree.
+Обычного:
 
-Это кажется мелочью, но архитектурно очень правильно.
+Prompt → Response → Tokens
 
-Вместо:
+для production-агента уже недостаточно.
 
-Agent A + Agent B + Agent C → одна рабочая директория
+Coding Agent может работать 30–40 минут:
 
-получаем:
+Jira → поиск кода → ADR → изменение → tests failed → анализ → второе изменение → tests passed → MR
 
-Task A → Worktree A → Agent A
+Поэтому появляется полезная сущность — Agent Run.
 
-Task B → Worktree B → Agent B
+Для каждой задачи можно хранить:
 
-Task C → Worktree C → Agent C
+Task + Context + Plan + Tool Calls + Changes + Tests + Cost + Result
 
-У каждого:
+И полный trace:
 
-— собственная ветка;
-— собственные изменения;
-— независимый CI;
-— отдельный Agent Run.
+00:00 Task loaded
+00:12 Jira retrieved
+00:19 ADR retrieved
+02:31 Code selected
+08:42 Patch #1
+11:10 Tests failed
+18:20 Patch #2
+23:03 Tests passed
+30:42 MR created
 
-А объединение происходит через обычный MR.
+После этого можно отвечать на гораздо более интересные вопросы:
+
+— где агент теряет время;
+— какой MCP потребляет больше всего контекста;
+— почему задача потребовала retry;
+— сколько стоит принятый MR;
+— где чаще всего вмешивается человек.
 
 ⭐ Практическая ценность: 5/5
-📈 Похоже на будущий стандарт
+🧪 Зрелость: раннее внедрение
+
+5. Cost Engineering приходит в AI-разработку
+
+Метрика:
+
+AI cost = $10 000 / month
+
+сама по себе почти бесполезна.
+
+Гораздо интереснее:
+
+Bug fix → $1.30
+Code Review → $0.19
+Release → $0.62
+Migration → $17.40
+
+И ещё лучше — считать Cost per Accepted Task.
+
+Например:
+
+Context Agent → $0.16
+Planning Agent → $0.08
+Coding Agent → $1.34
+Review Agent → $0.22
+Retry → $0.71
+
+Итого:
+
+Accepted MR → $2.51 + 12 минут human review
+
+Тогда уже можно сравнивать разные модели, agents и workflows по реальной экономике.
+
+Для каждого Agent Run можно задать budget:
+
+Runtime ≤ 30 min
+Tool Calls ≤ 100
+Cost ≤ $3
+
+При превышении — остановка и запрос решения человека.
+
+⭐ Практическая ценность: 4/5
+🧪 Зрелость: раннее внедрение
 
 💡 Что можно попробовать
 
-1. Уменьшить AGENTS.md
+1. Сделать MVP MCP Gateway
 
-Не превращать его в документацию всей системы.
+Начать всего с трёх интеграций:
 
-Оставить:
+Jira + Confluence + GitLab
 
-Build + Tests + Restrictions + DoD + Architecture Rules + Context Sources
+И логировать:
 
-2. Сделать Context Agent
+User + Agent + Task + MCP Tool + Duration + Result
 
-На вход:
+Позже туда же добавить permissions и budgets.
 
-Jira key
+2. Ввести единый Agent Run
 
-На выход:
+Неважно, работает задача через Codex, Claude или собственного агента.
 
-context-package.md
+Для всех использовать одну модель:
 
-Внутри:
+Task → Context → Plan → Tools → Trace → Tests → Cost → Result
 
-Task + Product + Owner + Repositories + Relevant Code + Tests + ADR + Dependencies
+3. Убрать security из prompt
 
-Причём первую версию можно сделать вообще без vector database:
+Prompt может объяснять агенту правила.
 
-Jira MCP + Confluence MCP + GitLab Search + ripgrep + Git history
+Но реальные ограничения должны обеспечиваться отдельно:
 
-3. Добавить обязательный Plan перед Coding
+LLM + Policy Engine
 
-Агент сначала формирует:
+4. Добавить budget на каждую агентную задачу
 
-Understanding → Context → Affected Components → Solution → Risks → Test Plan
+Не только token limit.
 
-И только потом получает разрешение менять код.
+Считать:
 
-4. Сделать read-only Review Agent
+runtime + tool calls + retries + cost
 
-Дать ему доступ к:
+И останавливать runaway agents.
 
-Jira + Confluence + ADR + Product Catalog + API Contracts
+5. Начать считать Cost per Accepted Task
 
-Но не давать права изменять эти системы.
+Не «сколько потратили на AI за месяц», а:
 
-5. Начать измерять Context Retrieval
+сколько стоил закрытый bug / принятый MR / release
 
-Для 20–30 старых задач проверить:
+Это даст гораздо более честную картину эффективности.
 
-нашёл ли агент правильный repository
+Главный вывод недели
 
-нашёл ли нужные файлы
+AI Engineering постепенно перестаёт быть:
 
-нашёл ли тесты
+Developer → LLM
 
-нашёл ли нужный ADR
+и начинает выглядеть как полноценная платформа:
 
-Это позволит оценивать качество Code RAG отдельно от качества LLM.
+Developer / Jira → Agent Platform → Agent Runtime → MCP Gateway → корпоративные системы
 
-Главный вывод
+А настоящая платформенная ценность концентрируется уже не в конкретной модели, а вокруг:
 
-Следующий этап Context Engineering выглядит не как:
+Context + MCP Gateway + Policies + Agent Runs + Observability + Evals + Cost Control.
 
-загрузить агенту как можно больше информации
-
-а как:
-
-дать минимальные постоянные правила → найти правильный контекст именно под текущую задачу → проверить полноту → только потом разрешить агенту работать.
-
-Для больших инженерных платформ это, возможно, важнее очередного улучшения самой модели.
+И, похоже, именно этот слой в ближайшее время станет одним из самых интересных направлений Platform Engineering.
