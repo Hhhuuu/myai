@@ -1,250 +1,193 @@
-🤖 AI Engineering Digest — главное за неделю
+**🤖 AI Engineering Digest — главное за неделю**
 
-На этой неделе главный тренд не про очередную новую модель. Гораздо интереснее другое: вокруг AI-агентов начинает формироваться полноценная платформенная инфраструктура.
+📅 **Период: 10–17 августа 2026**
 
-MCP Gateway, policy engine, Agent Run, observability, cost control — всё это начинает выглядеть как отдельный слой современной engineering platform.
+Главный тренд недели: AI Engineering всё меньше упирается в «какая модель лучше пишет код» и всё больше — в инфраструктуру вокруг агента.
 
-1. MCP постепенно превращается в полноценную платформу
+Свежие исследования показывают, что coding agents часто ошибаются ещё **до генерации кода**: неправильно понимают требования или не определяют, какая версия требований сейчас актуальна. А GitHub, OpenAI и Cursor параллельно двигаются к переносимым Skills, persistent memory и воспроизводимым средам исполнения.
 
-На MCP Dev Summit Seoul обсуждали уже не столько «как написать MCP server», сколько эксплуатационные вопросы: MCP Gateway, безопасность, управление токенами, multi-agent systems и production operations.
+**1. Агенту нужен Active Contract, а не просто длинная история Jira**
 
-И это закономерная эволюция.
+Вышла интересная работа SpecPath. Авторы давали coding agents разные истории требований, которые в итоге приводили к **одному и тому же финальному контракту**.
 
-Когда MCP-серверов три:
+Среди 100 запусков, которые успешно решили задачу по прямой спецификации, **35 провалились хотя бы на одной эквивалентной истории изменений**.
 
-Agent → Jira / Confluence / GitLab
+`More Context ≠ Better Context`
 
-всё довольно просто.
+Jira и Confluence — это история. Агенту нужен текущий state:
 
-Когда их 30–50, появляется другая архитектура:
+`Jira + ADR + comments → Active Contract → Plan → Code`
 
-Agent → MCP Gateway → Jira / Confluence / GitLab / Logs / Metrics / Product Catalog
+⭐ **Практическая ценность:** 5/5  
+🧪 **Зрелость:** эксперимент → уже можно пилотировать
 
-Gateway уже может отвечать за:
+---
 
-— authentication;
-— discovery;
-— routing;
-— audit;
-— rate limits;
-— versioning;
-— token budgets;
-— permissions.
+**2. Requirement Engineering становится частью Agent Pipeline**
 
-Например, Review Agent получает:
+Исследование SWE-RPG проверяет всю цепочку:
 
-Jira.read → ALLOW
-Confluence.read → ALLOW
-GitLab.code.read → ALLOW
-GitLab.push → DENY
+`Requirements → Planning → Code`
 
-А Release Agent — совершенно другой набор прав.
+Средний resolved rate протестированных coding agents — **31,5%**. Во многих конфигурациях **24,5–46% запусков ломались на восстановлении implicit requirements**.
 
-⭐ Практическая ценность: 5/5
-📈 Зрелость: раннее внедрение → становится стандартом
+Поэтому интереснее:
 
-2. Появляется архитектура Meta-Harness
+`Jira → Requirement Agent → Plan → Coding Agent → Verification`
 
-Интересная идея развивается вокруг Databricks Omnigent: не привязывать внутреннюю AI-платформу непосредственно к Codex, Claude Code или Cursor.
+и отдельно измерять:
 
-Вместо:
+`Requirement Recall / Plan Quality / Patch Quality`
 
-Наш процесс → Codex
+⭐ **Практическая ценность:** 5/5  
+🔥 **Стоит пробовать**
 
-строить:
+---
 
-Наш процесс → Agent Platform → Codex / Claude / другие agents
+**3. Agent Plugins 1.0: Skills + MCP становятся переносимыми**
 
-А над конкретным runtime держать едиными:
+GitHub включил поддержку Agent Plugins 1.0 в VS Code, Copilot CLI, Copilot SDK и Copilot app.
 
-Context + Skills + MCP + Policies + Observability + Evals
+Один package может содержать:
 
-Тогда завтра можно поменять coding agent, не переписывая release process, security policies и интеграции.
+`Skill + MCP Server`
 
-Например, есть Release Agent:
+и использоваться совместимыми agent clients.
 
-Task → Context → Dependency Graph → Release Plan → Jira/GitLab → Approval
+Для внутренних платформ это позволяет распространять `release-management`, `code-review`, `requirements-analysis`, `incident-analysis`, `embedded-cpp-review` как стандартные корпоративные capabilities.
 
-Сегодня executor — Codex.
+⭐ **Практическая ценность:** 5/5  
+📈 **Зрелость:** раннее внедрение
 
-Завтра benchmark показывает, что Claude лучше справляется с такими задачами.
+---
 
-Меняем executor, а весь workflow остаётся прежним.
+**4. Cursor начал относиться к environment агента как к CI artifact**
 
-⭐ Практическая ценность: 5/5
-🧪 Зрелость: раннее внедрение
+Cursor выпустил Builds для Cloud Agents:
 
-3. Permissions пора выносить из prompt
+`clone repo → install dependencies → setup → snapshot`
 
-Очень важный security-паттерн становится всё заметнее.
+Cursor хранит:
 
-Недостаточно написать агенту:
+`Build → commit SHA → logs → Agent Run`
 
-Never push directly to main.
+Получается практически `Golden Environment for Agents`.
 
-LLM не должен самостоятельно определять границы собственных полномочий.
+Для каждого запуска полезно сохранять:
 
-Правильнее:
+`AgentRun + repository SHA + environment ID + toolchain + dependencies + model`
 
-Agent proposes action → Policy Engine → ALLOW / DENY / APPROVAL
+Тогда агентную задачу можно воспроизвести.
 
-Например:
+⭐ **Практическая ценность:** 5/5  
+📈 **Зрелость:** можно применять сейчас
 
-read repository → ALLOW
-create feature branch → ALLOW
-push feature/* → ALLOW
-push develop → APPROVAL
-push main → DENY
-create production release → APPROVAL
+---
 
-То есть автономность определяется не для агента целиком, а для конкретного действия и уровня риска.
+**5. Multi-Agent ≠ запустить 50 агентов на один repository**
 
-⭐ Практическая ценность: 5/5
-📈 Зрелость: становится стандартом
+Anthropic исследовала multi-agent systems.
 
-4. Agent Observability становится отдельной дисциплиной
+Когда задача хорошо распараллеливается, swarm агентов может дать дополнительное покрытие. Но при совместном изменении связанного кода растут конфликты, зависимости и coordination overhead.
 
-Обычного:
+Полезнее:
 
-Prompt → Response → Tokens
+`Coordinator → Task decomposition → isolated Worktrees → Verification → Merge`
 
-для production-агента уже недостаточно.
+То есть важнее:
 
-Coding Agent может работать 30–40 минут:
+**partitioning + ownership + isolation + merge gates**
 
-Jira → поиск кода → ADR → изменение → tests failed → анализ → второе изменение → tests passed → MR
+⭐ **Практическая ценность:** 5/5  
+🧪 **Зрелость:** раннее внедрение
 
-Поэтому появляется полезная сущность — Agent Run.
+---
 
-Для каждой задачи можно хранить:
+**6. Shopify сделала тестовый API удобным для AI agents**
 
-Task + Context + Plan + Tool Calls + Changes + Tests + Cost + Result
+Mobile E2E tests Shopify деградировали примерно до **50% стабильности**.
 
-И полный trace:
+Команда перепроектировала API: оставила маленький набор операций, сделала assertion обязательным после каждого action и использовала computer vision для взаимодействия с UI.
 
-00:00 Task loaded
-00:12 Jira retrieved
-00:19 ADR retrieved
-02:31 Code selected
-08:42 Patch #1
-11:10 Tests failed
-18:20 Patch #2
-23:03 Tests passed
-30:42 MR created
+Результат — **98% test stability**.
 
-После этого можно отвечать на гораздо более интересные вопросы:
+Отсюда отличный принцип:
 
-— где агент теряет время;
-— какой MCP потребляет больше всего контекста;
-— почему задача потребовала retry;
-— сколько стоит принятый MR;
-— где чаще всего вмешивается человек.
+**не обучать агента пользоваться плохим API — сделать API таким, чтобы ошибиться было сложно**
 
-⭐ Практическая ценность: 5/5
-🧪 Зрелость: раннее внедрение
+Это применимо к:
 
-5. Cost Engineering приходит в AI-разработку
+`Testing API / Release API / Deployment API / Embedded tooling / MCP tools`
 
-Метрика:
+⭐ **Практическая ценность:** 5/5  
+🔥 **Можно применять уже сейчас**
 
-AI cost = $10 000 / month
+---
 
-сама по себе почти бесполезна.
+**💡 Что можно попробовать**
 
-Гораздо интереснее:
+**1. Active Contract**
 
-Bug fix → $1.30
-Code Review → $0.19
-Release → $0.62
-Migration → $17.40
+Перед Coding Agent собирать:
 
-И ещё лучше — считать Cost per Accepted Task.
+`Active Requirements + Superseded + Constraints + Acceptance Criteria`
 
-Например:
+вместо всей Jira history.
 
-Context Agent → $0.16
-Planning Agent → $0.08
-Coding Agent → $1.34
-Review Agent → $0.22
-Retry → $0.71
+**2. Corporate Agent Plugins**
 
-Итого:
+Упаковывать внутренние `Skills + MCP` в переносимые capability packages.
 
-Accepted MR → $2.51 + 12 минут human review
+**3. Golden Agent Environment**
 
-Тогда уже можно сравнивать разные модели, agents и workflows по реальной экономике.
+Версионировать:
 
-Для каждого Agent Run можно задать budget:
+`repo SHA + dependencies + toolchain + environment ID`
 
-Runtime ≤ 30 min
-Tool Calls ≤ 100
-Cost ≤ $3
+**4. Policy Gate**
 
-При превышении — остановка и запрос решения человека.
+Не полагаться только на `"не делай push в main"` в prompt.
 
-⭐ Практическая ценность: 4/5
-🧪 Зрелость: раннее внедрение
+Использовать:
 
-💡 Что можно попробовать
+`Agent → Policy → ALLOW / DENY / APPROVAL`
 
-1. Сделать MVP MCP Gateway
+**5. Stage-aware Evals**
 
-Начать всего с трёх интеграций:
+Измерять не только `Tests Passed`, но всю цепочку:
 
-Jira + Confluence + GitLab
+`Requirement Understanding → Plan → Context Retrieval → Code → Tests`
 
-И логировать:
+---
 
-User + Agent + Task + MCP Tool + Duration + Result
+**Главный вывод недели**
 
-Позже туда же добавить permissions и budgets.
+Следующий этап AI Engineering выглядит уже не как:
 
-2. Ввести единый Agent Run
+`Developer → LLM → Code`
 
-Неважно, работает задача через Codex, Claude или собственного агента.
+а скорее:
 
-Для всех использовать одну модель:
+`Requirements → Active Contract → Context → Plan → Agents → Verification → Policy → Merge → Memory`
 
-Task → Context → Plan → Tools → Trace → Tests → Cost → Result
+Гораздо важнее становятся:
 
-3. Убрать security из prompt
+**Specification + Context + Skills + Agent Environment + Policies + Verification + Memory + Evals**
 
-Prompt может объяснять агенту правила.
+---
 
-Но реальные ограничения должны обеспечиваться отдельно:
+**🔗 Почитать подробнее**
 
-LLM + Policy Engine
+[SpecPath](https://arxiv.org/abs/2608.09799)
 
-4. Добавить budget на каждую агентную задачу
+[SWE-RPG](https://arxiv.org/abs/2608.09072)
 
-Не только token limit.
+[Anthropic — Multiagent Systems](https://www.anthropic.com/research/multiagent-systems)
 
-Считать:
+[GitHub — Agent Plugins 1.0](https://github.blog/changelog/2026-08-12-agent-plugins-1-0-in-vs-code-copilot-cli-and-the-copilot-app/)
 
-runtime + tool calls + retries + cost
+[Cursor — Cloud Agent Builds](https://cursor.com/changelog/08-13-26)
 
-И останавливать runaway agents.
+[Shopify — Mobile E2E Testing](https://shopify.engineering/mobile-e2e-testing)
 
-5. Начать считать Cost per Accepted Task
-
-Не «сколько потратили на AI за месяц», а:
-
-сколько стоил закрытый bug / принятый MR / release
-
-Это даст гораздо более честную картину эффективности.
-
-Главный вывод недели
-
-AI Engineering постепенно перестаёт быть:
-
-Developer → LLM
-
-и начинает выглядеть как полноценная платформа:
-
-Developer / Jira → Agent Platform → Agent Runtime → MCP Gateway → корпоративные системы
-
-А настоящая платформенная ценность концентрируется уже не в конкретной модели, а вокруг:
-
-Context + MCP Gateway + Policies + Agent Runs + Observability + Evals + Cost Control.
-
-И, похоже, именно этот слой в ближайшее время станет одним из самых интересных направлений Platform Engineering.
+[OpenAI — What’s New](https://learn.chatgpt.com/docs/whats-new)
