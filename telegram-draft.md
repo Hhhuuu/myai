@@ -1,247 +1,300 @@
 **🤖 AI Engineering Digest — главное за неделю**
 
-📅 **Период: 10–17 августа 2026**
+📅 **Период: 18–24 августа 2026**
 
-Главный тренд недели: AI Engineering всё меньше упирается в «какая модель лучше пишет код» и всё больше — в **инфраструктуру вокруг агента**.
+Главный тренд недели: **AI Engineering всё больше становится инженерией среды вокруг агента, а не соревнованием моделей.**
 
-Свежие исследования показывают, что coding agents часто ошибаются ещё **до генерации кода**: неправильно понимают требования или не определяют, какая версия требований сейчас актуальна.
+В центре внимания — agent harness, управление MCP и правами, воспроизводимые Agent Runs, project-specific Skills и правильное разделение работы между несколькими агентами.
 
-А GitHub, OpenAI, Anthropic и Cursor параллельно двигаются к переносимым Skills, управляемому контексту, воспроизводимым окружениям и более зрелой orchestration агентов.
+**1. Asana: миграция на 5 лет работы → примерно 2 недели с Codex**
 
-**1. Агенту нужен Active Contract, а не вся история Jira**
+Один из самых прикладных кейсов недели.
 
-Исследование SpecPath показало интересную проблему.
+Asana нужно было избавиться от устаревшего Enzyme во frontend-коде. По прежним оценкам миграция могла растянуться примерно на **5 лет инженерной работы**.
 
-Coding Agent может правильно решить задачу по финальной спецификации, но ошибиться, если получает длинную историю изменявшихся и отменённых требований.
+С Codex команда закончила её примерно за **2 календарные недели**.
 
-Среди 100 запусков, успешно решивших прямую спецификацию, **35 провалились хотя бы на одной эквивалентной истории изменений**.
+Особенно интересен сам процесс.
 
-Отсюда важная мысль:
+Использовалось до четырёх агентов параллельно, но каждый работал **в отдельной копии codebase**.
 
-More Context ≠ Better Context
+Схема:
 
-Jira и Confluence содержат историю решений. Агенту же нужен **актуальный контракт**:
+Migration Backlog → Task Decomposition → 4 Isolated Agents → Tests → Human Review → Merge
 
-Jira + ADR + Comments → Active Contract → Plan → Code
+Инженер проверял прогресс примерно два раза в день и вручную review'ил изменения.
 
-В Active Contract можно отдельно хранить:
+Asana отдельно отмечает интересный момент: **простые инструкции работали лучше сложных prompt-конструкций**.
 
-— действующие требования;
-— отменённые решения;
-— ограничения;
-— Acceptance Criteria;
-— нерешённые вопросы.
+Практический вывод: Agentic Development уже хорошо подходит для больших механических backlog-задач:
 
-⭐ **Практическая ценность:** 5/5
-🧪 **Зрелость:** уже можно пилотировать
-
-**2. Requirements становятся отдельным этапом Agent Pipeline**
-
-Ещё одна интересная работа недели — SWE-RPG.
-
-Coding Agents проверяли сразу по всей цепочке:
-
-Requirements → Planning → Code
-
-Средний resolved rate протестированных систем составил около **31,5%**.
-
-Но самое интересное — значительная часть проблем возникала ещё до написания кода.
-
-Во многих конфигурациях **24,5–46% запусков ломались на восстановлении implicit requirements**.
-
-Поэтому простой pipeline:
-
-Jira → Coding Agent
-
-может быть слишком примитивным.
-
-Интереснее:
-
-Jira → Requirement Agent → Plan → Coding Agent → Verification
-
-А качество измерять отдельно:
-
-Requirement Recall → Plan Quality → Context Quality → Patch Quality
+— dependency upgrades;
+— deprecated API removal;
+— migration между test frameworks;
+— массовые refactoring;
+— обновление SDK;
+— переход между версиями платформы.
 
 ⭐ **Практическая ценность:** 5/5
-🔥 **Стоит пробовать**
+📈 **Зрелость:** можно пилотировать сейчас
 
-**3. Agent Plugins: Skills + MCP становятся переносимыми**
+**2. MCP превращается в управляемую корпоративную инфраструктуру**
 
-GitHub включил поддержку Agent Plugins 1.0 в VS Code, Copilot CLI, Copilot SDK и Copilot app.
+GitHub добавил централизованные enterprise-настройки Copilot для JetBrains.
 
-Один package теперь может объединять:
+Администраторы теперь могут управлять:
 
-Skill + MCP Server
+— разрешёнными MCP-серверами;
+— plugins и marketplaces;
+— permissions;
+— режимами обхода approvals;
+— OpenTelemetry.
 
-и использоваться совместимыми agent clients.
+То есть модель:
 
-Для внутренних платформ это особенно интересно.
+Developer → Agent → любой MCP
 
-Можно постепенно создавать корпоративные capabilities:
+постепенно заменяется на:
 
-— release-management;
-— code-review;
-— requirements-analysis;
-— incident-analysis;
-— embedded-cpp-review.
+Developer → Agent → Corporate Policy → Approved MCP
 
-И не привязывать их намертво к конкретному Codex, Copilot или другому агенту.
+Это важный сдвиг.
+
+Если в компании появятся десятки MCP-серверов, нужен уже не просто каталог интеграций, а полноценный **MCP Governance Layer**:
+
+Identity → Agent → Tool → Permission → Audit
+
+Например:
+
+Jira.read → ALLOW
+
+Confluence.read → ALLOW
+
+GitLab.read → ALLOW
+
+GitLab.push → scoped
+
+Production.deploy → APPROVAL
+
+⭐ **Практическая ценность:** 5/5
+📈 **Зрелость:** становится стандартом
+
+**3. Open Source Agent Harness становится отдельным слоем платформы**
+
+TrueFoundry открыла проект TrueForge.
+
+Это open-source Agent Harness, который объединяет:
+
+Model + MCP + Skills + Context + Session State + Sandbox + Approvals
+
+Интересна сама архитектурная идея.
+
+LLM — это ещё не агент.
+
+Полноценный Agent Runtime выглядит скорее так:
+
+Model → Harness → Context → Tools → Sandbox → Policies → State
+
+Причём TrueForge отдельно занимается Context Engineering:
+
+— subagents;
+— deferred tool loading;
+— compaction;
+— offloading больших результатов;
+— session state.
+
+Для внутренней AI Platform это интересный вариант архитектуры, где можно менять модель, не меняя всю инфраструктуру вокруг неё.
+
+⭐ **Практическая ценность:** 4/5
+🧪 **Зрелость:** раннее внедрение
+
+**4. Repository может сам «обучить» агента работе с собой**
+
+Очень интересная работа недели — SkillForge.
+
+Идея отличается от обычного AGENTS.md.
+
+Вместо того чтобы ждать реальную задачу:
+
+Repository → Jira Task → Agent начинает изучать проект
+
+система заранее создаёт synthetic tasks вокруг существующего кода и тестов.
 
 Получается:
 
-Corporate Knowledge → Agent Plugin → разные Agent Runtimes
+Repository → Synthetic Tasks → Agent Experience → Project Skills → Future Tasks
+
+То есть агент заранее учится:
+
+— где находятся важные компоненты;
+— какие архитектурные паттерны используются;
+— как тестируется функциональность;
+— какие способы решения характерны именно для этого проекта.
+
+В результате формируются **repository-specific Skills**.
+
+Это потенциально следующий шаг после обычного Code RAG.
+
+Code RAG отвечает:
+
+«Какой код относится к задаче?»
+
+Repository Skills отвечают:
+
+«Как в этом проекте обычно решают задачи такого типа?»
 
 ⭐ **Практическая ценность:** 5/5
-📈 **Зрелость:** раннее внедрение
+🧪 **Зрелость:** эксперимент, но очень интересно
 
-**4. Golden Environment для Coding Agents**
+**5. Документация для AI Agent должна отличаться от документации для человека**
 
-Cursor представил Builds для Cloud Agents.
+Ещё одно исследование недели проанализировало **557 coding-agent sessions и более 33 000 agent-created PR**.
 
-Окружение агента можно подготовить заранее:
+Оказалось, что **60,5% взаимодействий агентов с документацией приходились на agent-facing artefacts**:
 
-Repository → Dependencies → Toolchain → Setup → Snapshot
+— AGENTS.md;
+— CLAUDE.md;
+— планы;
+— рабочие инструкции;
+— verification logs.
 
-А потом запускать агента уже внутри готового environment.
+Классическая техническая документация использовалась значительно реже.
 
-Особенно интересно хранить связь:
+Отсюда интересный вывод.
 
-Agent Run → Repository SHA → Environment ID → Model
+Для человека мы пишем:
 
-Это делает агентную задачу воспроизводимой.
+Architecture → Concepts → Examples → API Reference
 
-Для корпоративной Agent Platform такой подход очень похож на развитие CI:
+Для агента полезнее:
 
-Golden CI Image → Golden Agent Environment
+Task Rules → Commands → Constraints → Verification
 
-Для каждого Agent Run имеет смысл сохранять:
+То есть рядом с обычной документацией начинает появляться отдельный **Agent Documentation Layer**.
 
-— repository SHA;
-— environment ID;
-— toolchain;
-— dependencies;
-— model;
-— agent version.
+Например:
+
+AGENTS.md
+
+— как собрать;
+— какие команды использовать;
+— что запрещено менять;
+— где искать архитектуру;
+— какие проверки обязательны;
+— какой Definition of Done.
+
+А критичные требования лучше дополнительно фиксировать исполняемыми quality gates.
 
 ⭐ **Практическая ценность:** 5/5
-📈 **Зрелость:** можно применять сейчас
+📈 **Зрелость:** можно внедрять сейчас
 
-**5. Multi-Agent ≠ запустить 50 агентов на один repository**
+**6. Agentic Code Review превращается в pipeline из нескольких проверяющих агентов**
 
-Anthropic опубликовала интересные результаты экспериментов с multi-agent systems.
+Google Mandiant раскрыла архитектуру своего Agentic Vulnerability Discovery Harness.
 
-Если задачу можно хорошо разделить — например параллельно искать разные классы проблем — несколько агентов действительно дают дополнительное покрытие.
+Это не:
 
-Но когда много агентов одновременно изменяют связанный код, быстро появляются:
+Code → LLM → Security Comments
 
-— конфликтующие изменения;
-— зависимости между задачами;
-— coordination overhead;
-— проблемы с merge.
+А полноценная цепочка:
 
-Поэтому перспективнее:
+Discovery → Hypothesis → Verification → Exploit/Test → Reviewer
 
-Coordinator → Task Decomposition → Isolated Worktrees → Verification → Merge
+То есть один агент ищет потенциальную проблему, другой пытается её опровергнуть или подтвердить, после чего результат проходит дополнительную проверку.
 
-Главное здесь не количество агентов, а:
+Mandiant сообщает, что в одном incident-response кейсе система обнаружила более **100 true-positive критических уязвимостей за два дня**, а за десять месяцев её работа привела как минимум к 12 CVE.
 
-**partitioning + ownership + isolation + merge gates**
+Это интересный паттерн не только для security.
+
+Так же можно строить:
+
+Architecture Review
+
+Performance Review
+
+API Compatibility Review
+
+Embedded Safety Review
+
+Главная идея:
+
+**не просить одного LLM одновременно придумать проблему и подтвердить, что она действительно существует.**
 
 ⭐ **Практическая ценность:** 5/5
 🧪 **Зрелость:** раннее внедрение
 
-**6. Shopify: хороший API важнее умного агента**
-
-Очень понравился кейс Shopify с mobile E2E testing.
-
-Стабильность старых тестов деградировала примерно до **50%**.
-
-Команда не стала бесконечно лечить flaky tests, а перепроектировала сам testing API:
-
-— уменьшила количество возможных операций;
-— сделала assertions обязательными;
-— упростила взаимодействие с интерфейсом.
-
-В результате стабильность выросла до **98%**.
-
-И здесь есть отличный принцип для AI Engineering:
-
-**не учить агента пользоваться плохим API — сделать API таким, чтобы ошибиться было сложно.**
-
-Это относится не только к тестированию.
-
-Так стоит проектировать:
-
-Testing API → Release API → Deployment API → MCP Tools → Internal CLI
-
-⭐ **Практическая ценность:** 5/5
-🔥 **Можно применять уже сейчас**
-
 **💡 Что можно попробовать**
 
-**1. Active Contract**
+**1. Migration Swarm**
 
-Перед Coding Agent собирать:
+Взять большую механическую задачу:
 
-Active Requirements + Superseded + Constraints + Acceptance Criteria
+dependency upgrade / deprecated API / test migration
 
-вместо передачи всей истории Jira.
+и дать её 2–4 агентам.
 
-**2. Corporate Agent Plugins**
+Но обязательно:
 
-Начать упаковывать внутренние Skills + MCP в переносимые capability packages.
+Task Decomposition → Isolated Worktrees → Tests → Human Review → Merge
 
-**3. Golden Agent Environment**
+**2. Agent Run Contract**
 
-Для каждого Agent Run фиксировать:
+Для каждого запуска агента сохранять:
 
-Repository SHA + Dependencies + Toolchain + Environment ID + Model
+Task + Repository SHA + Model + Skills + MCP + Permissions + Environment + Cost + Result
 
-**4. Policy Gate**
+Это даст воспроизводимость и нормальную observability.
 
-Не полагаться только на инструкцию «не делай push в main».
+**3. Corporate MCP Allowlist**
 
-Реальное ограничение должно находиться за пределами LLM:
+Для каждого MCP определить:
 
-Agent → Policy → ALLOW / DENY / APPROVAL
+Owner + Allowed Agents + Read/Write + Data Classification + Approval Policy
 
-**5. Stage-aware Evals**
+**4. Agent Documentation Layer**
 
-Измерять не только итоговое:
+Добавить к 1–2 репозиториям хороший AGENTS.md:
 
-Tests Passed
+Build + Tests + Constraints + Architecture Rules + Verification + DoD
 
-а всю цепочку:
+и посмотреть, как меняется качество agent tasks.
 
-Requirements → Context → Plan → Code → Tests
+**5. Repository Skills**
+
+Взять историю 20–30 выполненных задач одного проекта и попробовать извлечь повторяющиеся инженерные паттерны:
+
+Review Comments → Human Fixes → Patterns → Skills
+
+Это более простой первый шаг к идее SkillForge без построения полноценной research-системы.
 
 **Главный вывод недели**
 
-Следующий этап AI Engineering выглядит уже не как:
+AI Developer Platform постепенно перестаёт выглядеть как:
 
-Developer → LLM → Code
+Developer → Codex / Claude / Copilot
 
-а скорее:
+И становится скорее такой:
 
-Requirements → Active Contract → Context → Plan → Agents → Verification → Policy → Merge → Memory
+Developer / Jira → Agent Platform → Agent Harness → Context + Skills → Policy → MCP → Sandbox → Verification → Agent Run
 
-И всё меньше конкурентное преимущество определяется конкретной моделью.
+А конкретная модель становится **сменным runtime-компонентом**.
 
-Гораздо важнее становятся:
+Основная ценность начинает концентрироваться вокруг:
 
-**Specification + Context + Skills + Agent Environment + Policies + Verification + Memory + Evals**
+**Context + Skills + Harness + MCP Governance + Policies + Verification + Observability + Evals**
+
+И, похоже, именно этот слой станет следующим большим полем для Platform Engineering.
 
 **🔗 Почитать подробнее**
 
-[SpecPath](https://arxiv.org/abs/2608.09799)
+[OpenAI — Asana и Codex](https://openai.com/index/asana-codex/)
 
-[SWE-RPG](https://arxiv.org/abs/2608.09072)
+[GitHub — Enterprise Copilot Settings](https://github.blog/changelog/)
 
-[Anthropic — Multiagent Systems](https://www.anthropic.com/research/multiagent-systems)
+[TrueForge — Open Source Agent Harness](https://github.com/truefoundry/trueforge)
 
-[GitHub — Agent Plugins 1.0](https://github.blog/changelog/2026-08-12-agent-plugins-1-0-in-vs-code-copilot-cli-and-the-copilot-app/)
+[SkillForge](https://arxiv.org/)
 
-[Cursor — Cloud Agent Builds](https://cursor.com/changelog/08-13-26)
+[Google Mandiant — Agentic Source Code Review](https://cloud.google.com/blog/topics/threat-intelligence/)
 
-[Shopify — Mobile E2E Testing](https://shopify.engineering/mobile-e2e-testing)
+[Google Antigravity](https://cloud.google.com/)
