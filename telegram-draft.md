@@ -2,127 +2,181 @@
 
 📅 **Период: 10–17 августа 2026**
 
-Главный тренд недели: AI Engineering всё меньше упирается в «какая модель лучше пишет код» и всё больше — в инфраструктуру вокруг агента.
+Главный тренд недели: AI Engineering всё меньше упирается в «какая модель лучше пишет код» и всё больше — в **инфраструктуру вокруг агента**.
 
-Свежие исследования показывают, что coding agents часто ошибаются ещё **до генерации кода**: неправильно понимают требования или не определяют, какая версия требований сейчас актуальна. А GitHub, OpenAI и Cursor параллельно двигаются к переносимым Skills, persistent memory и воспроизводимым средам исполнения.
+Свежие исследования показывают, что coding agents часто ошибаются ещё **до генерации кода**: неправильно понимают требования или не определяют, какая версия требований сейчас актуальна.
 
-**1. Агенту нужен Active Contract, а не просто длинная история Jira**
+А GitHub, OpenAI, Anthropic и Cursor параллельно двигаются к переносимым Skills, управляемому контексту, воспроизводимым окружениям и более зрелой orchestration агентов.
 
-Вышла интересная работа SpecPath. Авторы давали coding agents разные истории требований, которые в итоге приводили к **одному и тому же финальному контракту**.
+**1. Агенту нужен Active Contract, а не вся история Jira**
 
-Среди 100 запусков, которые успешно решили задачу по прямой спецификации, **35 провалились хотя бы на одной эквивалентной истории изменений**.
+Исследование SpecPath показало интересную проблему.
 
-`More Context ≠ Better Context`
+Coding Agent может правильно решить задачу по финальной спецификации, но ошибиться, если получает длинную историю изменявшихся и отменённых требований.
 
-Jira и Confluence — это история. Агенту нужен текущий state:
+Среди 100 запусков, успешно решивших прямую спецификацию, **35 провалились хотя бы на одной эквивалентной истории изменений**.
 
-`Jira + ADR + comments → Active Contract → Plan → Code`
+Отсюда важная мысль:
 
-⭐ **Практическая ценность:** 5/5  
-🧪 **Зрелость:** эксперимент → уже можно пилотировать
+More Context ≠ Better Context
 
----
+Jira и Confluence содержат историю решений. Агенту же нужен **актуальный контракт**:
 
-**2. Requirement Engineering становится частью Agent Pipeline**
+Jira + ADR + Comments → Active Contract → Plan → Code
 
-Исследование SWE-RPG проверяет всю цепочку:
+В Active Contract можно отдельно хранить:
 
-`Requirements → Planning → Code`
+— действующие требования;
+— отменённые решения;
+— ограничения;
+— Acceptance Criteria;
+— нерешённые вопросы.
 
-Средний resolved rate протестированных coding agents — **31,5%**. Во многих конфигурациях **24,5–46% запусков ломались на восстановлении implicit requirements**.
+⭐ **Практическая ценность:** 5/5
+🧪 **Зрелость:** уже можно пилотировать
 
-Поэтому интереснее:
+**2. Requirements становятся отдельным этапом Agent Pipeline**
 
-`Jira → Requirement Agent → Plan → Coding Agent → Verification`
+Ещё одна интересная работа недели — SWE-RPG.
 
-и отдельно измерять:
+Coding Agents проверяли сразу по всей цепочке:
 
-`Requirement Recall / Plan Quality / Patch Quality`
+Requirements → Planning → Code
 
-⭐ **Практическая ценность:** 5/5  
+Средний resolved rate протестированных систем составил около **31,5%**.
+
+Но самое интересное — значительная часть проблем возникала ещё до написания кода.
+
+Во многих конфигурациях **24,5–46% запусков ломались на восстановлении implicit requirements**.
+
+Поэтому простой pipeline:
+
+Jira → Coding Agent
+
+может быть слишком примитивным.
+
+Интереснее:
+
+Jira → Requirement Agent → Plan → Coding Agent → Verification
+
+А качество измерять отдельно:
+
+Requirement Recall → Plan Quality → Context Quality → Patch Quality
+
+⭐ **Практическая ценность:** 5/5
 🔥 **Стоит пробовать**
 
----
-
-**3. Agent Plugins 1.0: Skills + MCP становятся переносимыми**
+**3. Agent Plugins: Skills + MCP становятся переносимыми**
 
 GitHub включил поддержку Agent Plugins 1.0 в VS Code, Copilot CLI, Copilot SDK и Copilot app.
 
-Один package может содержать:
+Один package теперь может объединять:
 
-`Skill + MCP Server`
+Skill + MCP Server
 
 и использоваться совместимыми agent clients.
 
-Для внутренних платформ это позволяет распространять `release-management`, `code-review`, `requirements-analysis`, `incident-analysis`, `embedded-cpp-review` как стандартные корпоративные capabilities.
+Для внутренних платформ это особенно интересно.
 
-⭐ **Практическая ценность:** 5/5  
+Можно постепенно создавать корпоративные capabilities:
+
+— release-management;
+— code-review;
+— requirements-analysis;
+— incident-analysis;
+— embedded-cpp-review.
+
+И не привязывать их намертво к конкретному Codex, Copilot или другому агенту.
+
+Получается:
+
+Corporate Knowledge → Agent Plugin → разные Agent Runtimes
+
+⭐ **Практическая ценность:** 5/5
 📈 **Зрелость:** раннее внедрение
 
----
+**4. Golden Environment для Coding Agents**
 
-**4. Cursor начал относиться к environment агента как к CI artifact**
+Cursor представил Builds для Cloud Agents.
 
-Cursor выпустил Builds для Cloud Agents:
+Окружение агента можно подготовить заранее:
 
-`clone repo → install dependencies → setup → snapshot`
+Repository → Dependencies → Toolchain → Setup → Snapshot
 
-Cursor хранит:
+А потом запускать агента уже внутри готового environment.
 
-`Build → commit SHA → logs → Agent Run`
+Особенно интересно хранить связь:
 
-Получается практически `Golden Environment for Agents`.
+Agent Run → Repository SHA → Environment ID → Model
 
-Для каждого запуска полезно сохранять:
+Это делает агентную задачу воспроизводимой.
 
-`AgentRun + repository SHA + environment ID + toolchain + dependencies + model`
+Для корпоративной Agent Platform такой подход очень похож на развитие CI:
 
-Тогда агентную задачу можно воспроизвести.
+Golden CI Image → Golden Agent Environment
 
-⭐ **Практическая ценность:** 5/5  
+Для каждого Agent Run имеет смысл сохранять:
+
+— repository SHA;
+— environment ID;
+— toolchain;
+— dependencies;
+— model;
+— agent version.
+
+⭐ **Практическая ценность:** 5/5
 📈 **Зрелость:** можно применять сейчас
-
----
 
 **5. Multi-Agent ≠ запустить 50 агентов на один repository**
 
-Anthropic исследовала multi-agent systems.
+Anthropic опубликовала интересные результаты экспериментов с multi-agent systems.
 
-Когда задача хорошо распараллеливается, swarm агентов может дать дополнительное покрытие. Но при совместном изменении связанного кода растут конфликты, зависимости и coordination overhead.
+Если задачу можно хорошо разделить — например параллельно искать разные классы проблем — несколько агентов действительно дают дополнительное покрытие.
 
-Полезнее:
+Но когда много агентов одновременно изменяют связанный код, быстро появляются:
 
-`Coordinator → Task decomposition → isolated Worktrees → Verification → Merge`
+— конфликтующие изменения;
+— зависимости между задачами;
+— coordination overhead;
+— проблемы с merge.
 
-То есть важнее:
+Поэтому перспективнее:
+
+Coordinator → Task Decomposition → Isolated Worktrees → Verification → Merge
+
+Главное здесь не количество агентов, а:
 
 **partitioning + ownership + isolation + merge gates**
 
-⭐ **Практическая ценность:** 5/5  
+⭐ **Практическая ценность:** 5/5
 🧪 **Зрелость:** раннее внедрение
 
----
+**6. Shopify: хороший API важнее умного агента**
 
-**6. Shopify сделала тестовый API удобным для AI agents**
+Очень понравился кейс Shopify с mobile E2E testing.
 
-Mobile E2E tests Shopify деградировали примерно до **50% стабильности**.
+Стабильность старых тестов деградировала примерно до **50%**.
 
-Команда перепроектировала API: оставила маленький набор операций, сделала assertion обязательным после каждого action и использовала computer vision для взаимодействия с UI.
+Команда не стала бесконечно лечить flaky tests, а перепроектировала сам testing API:
 
-Результат — **98% test stability**.
+— уменьшила количество возможных операций;
+— сделала assertions обязательными;
+— упростила взаимодействие с интерфейсом.
 
-Отсюда отличный принцип:
+В результате стабильность выросла до **98%**.
 
-**не обучать агента пользоваться плохим API — сделать API таким, чтобы ошибиться было сложно**
+И здесь есть отличный принцип для AI Engineering:
 
-Это применимо к:
+**не учить агента пользоваться плохим API — сделать API таким, чтобы ошибиться было сложно.**
 
-`Testing API / Release API / Deployment API / Embedded tooling / MCP tools`
+Это относится не только к тестированию.
 
-⭐ **Практическая ценность:** 5/5  
+Так стоит проектировать:
+
+Testing API → Release API → Deployment API → MCP Tools → Internal CLI
+
+⭐ **Практическая ценность:** 5/5
 🔥 **Можно применять уже сейчас**
-
----
 
 **💡 Что можно попробовать**
 
@@ -130,51 +184,53 @@ Mobile E2E tests Shopify деградировали примерно до **50% 
 
 Перед Coding Agent собирать:
 
-`Active Requirements + Superseded + Constraints + Acceptance Criteria`
+Active Requirements + Superseded + Constraints + Acceptance Criteria
 
-вместо всей Jira history.
+вместо передачи всей истории Jira.
 
 **2. Corporate Agent Plugins**
 
-Упаковывать внутренние `Skills + MCP` в переносимые capability packages.
+Начать упаковывать внутренние Skills + MCP в переносимые capability packages.
 
 **3. Golden Agent Environment**
 
-Версионировать:
+Для каждого Agent Run фиксировать:
 
-`repo SHA + dependencies + toolchain + environment ID`
+Repository SHA + Dependencies + Toolchain + Environment ID + Model
 
 **4. Policy Gate**
 
-Не полагаться только на `"не делай push в main"` в prompt.
+Не полагаться только на инструкцию «не делай push в main».
 
-Использовать:
+Реальное ограничение должно находиться за пределами LLM:
 
-`Agent → Policy → ALLOW / DENY / APPROVAL`
+Agent → Policy → ALLOW / DENY / APPROVAL
 
 **5. Stage-aware Evals**
 
-Измерять не только `Tests Passed`, но всю цепочку:
+Измерять не только итоговое:
 
-`Requirement Understanding → Plan → Context Retrieval → Code → Tests`
+Tests Passed
 
----
+а всю цепочку:
+
+Requirements → Context → Plan → Code → Tests
 
 **Главный вывод недели**
 
 Следующий этап AI Engineering выглядит уже не как:
 
-`Developer → LLM → Code`
+Developer → LLM → Code
 
 а скорее:
 
-`Requirements → Active Contract → Context → Plan → Agents → Verification → Policy → Merge → Memory`
+Requirements → Active Contract → Context → Plan → Agents → Verification → Policy → Merge → Memory
+
+И всё меньше конкурентное преимущество определяется конкретной моделью.
 
 Гораздо важнее становятся:
 
 **Specification + Context + Skills + Agent Environment + Policies + Verification + Memory + Evals**
-
----
 
 **🔗 Почитать подробнее**
 
@@ -189,5 +245,3 @@ Mobile E2E tests Shopify деградировали примерно до **50% 
 [Cursor — Cloud Agent Builds](https://cursor.com/changelog/08-13-26)
 
 [Shopify — Mobile E2E Testing](https://shopify.engineering/mobile-e2e-testing)
-
-[OpenAI — What’s New](https://learn.chatgpt.com/docs/whats-new)
