@@ -1,412 +1,284 @@
 **🤖 AI Engineering Digest — главное за неделю**
 
-📅 **Период: 25–31 августа 2026**
+📅 **Период: 8–14 сентября 2026**
 
-Главный тренд недели: **AI Engineering постепенно превращается в Agent Platform Engineering.**
+Главный тренд недели: AI Engineering всё сильнее смещается от «дать агенту больше автономии» к **разделению ответственности между агентами, policy и verification**.
 
-Вопрос уже не только в том, насколько хорошо модель пишет код. Всё больше внимания уходит в Agent Runtime, память, Skills, MCP, permissions, observability, независимую проверку результата и корректную передачу контекста между агентами.
+На этой неделе особенно хорошо видно: хороший production-agent — это уже не одна умная модель, а система из отдельных ролей, правил, памяти и проверок.
 
-**1. Workflow Memory: память агента становится инженерным артефактом**
+**1. Project Memory становится отдельным слоем**
 
-OpenAI показала интересный внутренний подход к повторяющимся инженерным операциям с Codex.
+Cursor запустил Projects — слой над Cloud Agents для больших задач, миграций и целых приложений.
 
-Вместо того чтобы каждый запуск начинать с нуля, сохраняется весь рабочий процесс:
+Самое интересное — общий набор артефактов и знаний, которые могут использовать разные агенты.
 
-Goal → Plan → Approval → Commands → Results → Decisions → Next Run
+То есть память уже выглядит не как:
 
-Следующий агент получает не огромную историю чата, а структурированный результат предыдущего выполнения.
+Session Memory
 
-Например, для release process можно сохранять:
+а как:
 
-— что выпускали;
-— какой был план;
-— какие команды выполнялись;
-— что сломалось;
-— какие решения приняли;
-— что нужно проверить в следующий раз.
+Project → Shared Context → Decisions → Commands → Known Failures → Future Agents
 
-Получается что-то среднее между Memory, Runbook и Audit Log.
+Например, один агент разобрался, как собирать и тестировать сервис.
 
-Это особенно интересно для:
+Следующий уже не начинает исследование с нуля.
 
-— releases;
-— migrations;
-— dependency updates;
-— регулярных проверок;
-— maintenance;
-— evals.
+Это сильный паттерн для внутренних Agent Platform:
 
-⭐ **Практическая ценность:** 5/5
-📈 **Зрелость:** можно пробовать сейчас
-
-**2. AI Code Review становится Agent-to-Agent процессом**
-
-GitHub расширил Copilot Code Review.
-
-Теперь agentic review может автоматически проверять PR, созданные другими coding agents и ботами.
-
-Получается уже не:
-
-Developer → AI Review
-
-а:
-
-Coding Agent → PR → Review Agent → Human Feedback → Merge
-
-Но ещё интереснее появилась возможность фиксировать результат замечания:
-
-— Addressed;
-— Won't Fix;
-— Incorrect.
-
-Это очень важная штука для Evals.
-
-Например, за месяц Review Agent оставил 1 000 замечаний:
-
-650 → Addressed
-
-170 → Won't Fix
-
-180 → Incorrect
-
-И вот эти 180 Incorrect можно использовать как dataset для улучшения Skills, prompt и самого review pipeline.
-
-То есть AI Review постепенно получает собственный feedback loop:
-
-Review → Human Decision → Dataset → Eval → Improvement
-
-⭐ **Практическая ценность:** 5/5
-📈 **Зрелость:** становится production-практикой
-
-**3. Claude Code становится обычным элементом CI/CD**
-
-Anthropic выпустила Claude Code GitHub Action 1.0.
-
-Coding Agent теперь можно запускать практически как обычную CI job.
-
-Например:
-
-PR opened → Claude Review
-
-CI failed → Claude Investigation
-
-Issue created → Claude Triage
-
-Documentation changed → Claude Sync
-
-Security alert → Claude Analysis
-
-Это важный переход.
-
-Coding Agent постепенно перестаёт быть только инструментом разработчика в IDE.
-
-Он становится **event-driven участником SDLC**.
-
-Для платформенной команды отсюда появляется интересная возможность:
-
-Central Agent Workflow → reusable GitHub Action → Product Teams
-
-То есть продуктовой команде не нужно самостоятельно проектировать agent workflow — она просто подключает готовый корпоративный template.
-
-⭐ **Практическая ценность:** 5/5
-📈 **Зрелость:** можно внедрять
-
-**4. Skills + MCP + Plugins превращаются в корпоративный Marketplace**
-
-GitHub и OpenAI продолжают двигаться в сторону единого distribution layer для Agent Capabilities.
-
-Вместо того чтобы каждая команда отдельно поддерживала:
-
-AGENTS.md
-
-Skills
-
-MCP configuration
-
-prompts
-
-начинает появляться модель:
-
-Corporate Git → Capability Marketplace → Agent Clients
-
-Например, внутри компании можно создать:
-
-— cpp-review;
-— release-management;
-— incident-analysis;
-— requirements-analysis;
-— embedded-debugging;
-— architecture-review.
-
-Каждая capability имеет:
-
-Owner + Version + Skill + MCP + Permissions + Tests
-
-А дальше её могут использовать разные агенты.
-
-Это важно ещё и потому, что корпоративные знания перестают принадлежать конкретному Codex, Claude или Copilot.
+**Memory лучше привязывать к project / repository / product, а не к чату.**
 
 ⭐ **Практическая ценность:** 5/5
 📈 **Зрелость:** раннее внедрение
 
-**5. Multi-Agent Systems получают нормальную Observability**
+**2. Agent Permissions становятся настоящим Policy Gate**
 
-Появился интересный open-source проект llmmas-otel.
+GitHub добавил централизованные enterprise permissions для операций Copilot-агентов.
 
-Идея — использовать OpenTelemetry для трассировки multi-agent workflow.
+Для shell, файлов и network operations можно задать:
+
+DENY / REQUIRE APPROVAL / ALLOW
+
+И локальные настройки разработчика не могут ослабить корпоративную policy.
+
+Это важный сдвиг.
+
+Плохая модель:
+
+Agent получает prompt:
+«не делай ничего опасного»
+
+Более зрелая:
+
+Agent → Operation → Policy Engine → DENY / APPROVAL / ALLOW
+
+И тот же принцип стоит применять к:
+
+Git
+Jira
+MCP
+Deployment
+Secrets
+Production tools
+
+⭐ **Практическая ценность:** 5/5
+📈 **Зрелость:** становится стандартом
+
+**3. AI Code Review превращается в настоящий verification pipeline**
+
+GitHub обновил Copilot Code Review.
+
+Теперь review может выполняться ensemble из нескольких агентов, а reviewer получил возможность запускать shell-команды, build, tests и targeted scripts.
+
+То есть pipeline становится похож на:
+
+Diff → Context → Reviewer Agents → Build / Tests → Findings → Re-review
+
+Это уже не просто:
+
+LLM → comment
+
+Особенно интересно, что multi-agent здесь применяется там, где он действительно хорошо подходит — **для независимой проверки одного артефакта**, а не для хаотичного совместного написания кода.
+
+⭐ **Практическая ценность:** 5/5
+🔥 **Стоит пробовать**
+
+**4. Jira → Agent → PR становится штатным workflow**
+
+GitHub добавил Jira integration в Copilot workflow.
+
+Issue можно провести по цепочке:
+
+Jira Issue → Investigation → Implementation → PR
+
+Плюс появились scheduled agent tasks:
+
+hourly / daily / weekly / manual
+
+Это ещё один шаг к event-driven AI SDLC.
+
+Coding Agent постепенно становится не только инструментом в IDE, а **фоновым участником software lifecycle**.
 
 Например:
 
-Task
+CI failed → Agent Investigation
 
-→ Planning Agent
+Dependency changed → Agent Assessment
 
-→ Coding Agent
+Stale docs → Agent Update
 
-→ MCP
-
-→ Tool
-
-→ Review Agent
-
-→ Tests
-
-→ Result
-
-становится одним distributed trace.
-
-Можно увидеть:
-
-— сколько времени работал каждый агент;
-— какой MCP вызвал;
-— где потерялся context;
-— сколько было LLM calls;
-— где произошёл retry;
-— какой tool вернул ошибку.
-
-Но ещё интереснее — возможность Fault Injection.
-
-Например:
-
-MCP timeout
-
-Tool rate limit
-
-Malformed response
-
-Agent communication dropped
-
-Network error
-
-И посмотреть, переживёт ли Agent Workflow такую ситуацию.
-
-То есть к AI-агентам начинают применять обычные практики distributed systems:
-
-**Tracing + Fault Injection + Replay + Resilience Testing**
+Jira issue created → Agent Research
 
 ⭐ **Практическая ценность:** 5/5
-🧪 **Зрелость:** раннее внедрение
+📈 **Зрелость:** уже можно использовать в пилотах
 
-**6. Переключение модели посреди задачи оказалось отдельной инженерной проблемой**
+**5. Independent Test Agent: агент не должен сам определять, что его код правильный**
 
-Очень интересная работа недели — The Handoff Tax.
+Очень интересная работа недели — ExecCritic.
 
-Исследователи AWS провели около **58 000 запусков coding agents**, примерно 2 млн API calls и обработали около 36 млрд tokens.
+Главная идея:
 
-Они проверяли сценарий:
+Coding Agent и Test Agent должны быть разными ролями.
 
-Cheap Model → Strong Model
+Плохая схема:
 
-посреди длинной coding-задачи.
+Agent → Code → сам написал тест → тест прошёл → Done
 
-Кажется логичным просто передать сильной модели всю историю предыдущего агента.
+Проблема очевидна: ошибка в реализации и ошибка в тесте могут совпасть.
 
-Но оказалось, что это работает далеко не идеально.
+Более зрелая схема:
 
-При переходе:
+Requirement → Test Agent → Test Qualification → Frozen Tests → Coding Agent → Verification
 
-Cheap → Strong
+То есть критерий успешности фиксируется **до того, как агент начинает подгонять под него реализацию**.
 
-полная старая trajectory может даже мешать.
+В экспериментах качественный независимый test feedback заметно улучшал результат, а плохой — наоборот ухудшал.
 
-Полезнее передать:
+Отсюда важный вывод:
 
-Working Tree + Constraints + Distilled State
-
-А при переходе:
-
-Strong → Cheap
-
-история сильной модели, наоборот, может быть полезна.
-
-Отсюда появляется новая сущность:
-
-**Agent Handoff Contract**
-
-То есть передача задачи между агентами должна быть отдельным инженерным интерфейсом.
-
-Не:
-
-Agent B получает 100 000 tokens истории Agent A
-
-а:
-
-Agent A → Handoff Artifact → Agent B
-
-Например:
-
-Goal
-
-Current State
-
-Changed Files
-
-Constraints
-
-Tests
-
-Failed Attempts
-
-Open Questions
+**Execution Feedback полезен только тогда, когда oracle действительно независим и качественен.**
 
 ⭐ **Практическая ценность:** 5/5
-🧪 **Зрелость:** research → стоит экспериментировать
+🧪 **Зрелость:** research → очень хороший кандидат для пилота
 
-**7. GitHub: Evals нужно строить вокруг инженерного решения, а не accuracy модели**
+**6. SDD: агент плохо понимает, чего в спецификации не хватает**
 
-Очень хороший практический материал выпустил GitHub.
+Ещё один очень важный research-сигнал — IdeaAMBIG.
 
-Главная мысль:
+Исследование проверяло, умеет ли модель определить, что specification неполная.
 
-метрика вроде
+И результат довольно неприятный.
 
-Model Accuracy = 87%
+Модели значительно лучше формулируют уточнение, **если им уже показали, где проблема**.
 
-сама по себе почти бесполезна.
+Но самостоятельно обнаружить implementation-critical gap им пока сложно.
 
-Eval должен отвечать на конкретный инженерный вопрос.
+То есть:
 
-Например для AI Code Review:
+Detailed Markdown ≠ Complete Specification
 
-«Можно ли разрешить merge после Tests + AI Review без обязательного полного human review?»
+Отсюда для SDD нужен отдельный этап:
 
-Тогда нас интересуют:
+Specification → Readiness Review → Gap Detection → Clarification → Acceptance Criteria → Implementation
 
-False Negative Rate
-
-Incorrect Comments
-
-Defects after Merge
-
-Human Rework
-
-А для Requirement Agent:
-
-«Какую долю требований агент пропускает?»
-
-И уже под этот вопрос строится dataset.
-
-Это важный переход:
-
-Benchmark → Decision-oriented Eval
+И Requirement Agent стоит оценивать не по тому, насколько красиво он переписал требования, а по тому, **какие важные решения он не заметил**.
 
 ⭐ **Практическая ценность:** 5/5
-🔥 **Можно применять прямо сейчас**
+🔥 **Одна из самых важных тем недели для SDD**
+
+**7. Security: секреты не должны попадать в model context**
+
+Интересный кейс 1Password.
+
+Codex у них участвует почти во всём SDLC:
+
+Planning → Design → Code → PR Review → Acceptance Testing → Production Investigation
+
+Но security устроена отдельно.
+
+В repository хранятся не plaintext credentials, а references.
+
+Реальный secret подставляет approved internal tool только в момент выполнения действия.
+
+То есть:
+
+Agent знает, какой credential нужен
+
+но
+
+Agent не обязан видеть сам credential
+
+Получается хороший принцип:
+
+Security Policy → Skill
+
+Secret → External Resolver
+
+Action → Approved Tool
+
+Credential → Injected at Execution Time
+
+Именно так, похоже, и должны строиться серьёзные Agent Platforms.
+
+⭐ **Практическая ценность:** 5/5
+📈 **Зрелость:** production pattern
 
 **💡 Что можно попробовать**
 
-**1. Workflow Memory**
+**1. Specification Readiness Gate**
 
-Выбрать одну повторяющуюся операцию.
+Перед Coding Agent запускать отдельную проверку:
 
-Например Release.
+Missing Decisions + Ambiguities + Constraints + Acceptance Criteria
 
-И сохранять:
+Если есть критичные пробелы — не начинать coding.
 
-Goal → Plan → Commands → Results → Decisions
+**2. Independent Test Agent**
 
-Следующий Agent Run начинает работу с результата предыдущего.
+Один агент формирует acceptance / regression tests.
 
-**2. AI Review Feedback Loop**
+Другой — пишет реализацию.
 
-Начать собирать результат каждого AI Review:
+После проверки тесты фиксируются и не могут быть переписаны Coding Agent.
 
-Addressed / Incorrect / Won't Fix
+**3. Agent Policy Matrix**
 
-И постепенно формировать собственный Eval Dataset.
+Для каждого типа операций задать:
 
-**3. Agent Run Observability**
+READ → ALLOW
 
-Ввести единый run_id.
+WRITE → scoped
 
-И трассировать:
+MERGE → APPROVAL
 
-Agent → Model → MCP → Tool → Subagent → Tests
+RELEASE → APPROVAL
 
-Даже если пока используется только один Coding Agent.
+PRODUCTION → DENY / APPROVAL
 
-**4. Agent Handoff Contract**
+**4. Project Memory**
 
-Если задача передаётся между моделями или агентами, не передавать весь conversation history.
+Хранить отдельно:
 
-Формировать:
+Research + Decisions + Commands + Test Instructions + Known Failures
 
-Goal + Current State + Changes + Constraints + Tests + Open Questions
+И использовать это между разными Agent Runs.
 
-**5. Corporate Capability Marketplace**
+**5. Review Ensemble**
 
-Хранить корпоративные:
+Для high-risk PR запускать независимые reviewer roles:
 
-Skills + MCP + Plugins
+Correctness
 
-в Git.
+Architecture
 
-Для каждой capability определить:
+Compatibility
 
-Owner + Version + Permissions + Tests
+Security
+
+А потом агрегировать findings.
 
 **Главный вывод недели**
 
-Эволюция AI Engineering начинает выглядеть примерно так:
+Следующий этап Agentic Development — это уже не «ещё более автономный Coding Agent».
 
-Prompt Engineering
+Гораздо интереснее становится система разделённых ролей:
 
-↓
+Requirement Agent ≠ Coding Agent
 
-Context Engineering
+Coding Agent ≠ Test Agent
 
-↓
+Review Agent ≠ Author Agent
 
-Harness Engineering
+Agent ≠ Policy Engine
 
-↓
+Model Context ≠ Secret Store
 
-**Agent Platform Engineering**
+И production pipeline постепенно выглядит так:
 
-А production Agent Platform постепенно приобретает вполне узнаваемую архитектуру:
+Requirement → Spec → Readiness Gate → Independent Tests → Coding Agent → Review Ensemble → Policy Gate → Human Review → Merge
 
-Trigger → Active Context → Agent → Skills/MCP → Sandbox → Verification → Policy → Trace → Workflow Memory
+То есть AI-native SDLC неожиданно возвращается к очень классическим инженерным принципам:
 
-И конкретная LLM внутри этой системы становится всё больше **сменным runtime-компонентом**.
+**separation of concerns + independent verification + least privilege + explicit contracts**
 
-Основная инженерная ценность переезжает в:
-
-**Context + Skills + Harness + MCP + Policies + Verification + Observability + Memory + Evals**
-
-Пожалуй, два самых интересных направления недели — **Workflow Memory вместо бесконечной chat history** и **Agent Handoff Contract для передачи задач между моделями**.
-
-**🔗 Почитать подробнее**
-
-[OpenAI — Automating repetitive work with Codex](https://developers.openai.com/blog/automating-repetitive-work-at-openai-with-codex)
-
-[GitHub — Copilot Code Review](https://github.blog/changelog/2026-08-27-copilot-code-review-resolution-reasons-and-expanded-capabilities/)
-
-[Anthropic — Claude Code GitHub Action](https://github.com/anthropics/claude-code-action/releases)
-
-[GitHub — Evaluating LLMs before production](https://github.blog/ai-and-ml/llms/how-to-evaluate-llms-before-production/)
-
-[The Handoff Tax](https://arxiv.org/abs/2608.24358)
-
-[llmmas-otel](https://arxiv.org/abs/2608.24271)
-
-[Ark — Coding Agent Architecture](https://github.com/mtov/ark)
+Просто теперь эти принципы приходится применять уже не только к сервисам и людям, но и к агентам.
