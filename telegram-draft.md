@@ -1,284 +1,207 @@
 **🤖 AI Engineering Digest — главное за неделю**
 
-📅 **Период: 8–14 сентября 2026**
+📅 **Период: 15–21 сентября 2026**
 
-Главный тренд недели: AI Engineering всё сильнее смещается от «дать агенту больше автономии» к **разделению ответственности между агентами, policy и verification**.
+На этой неделе главный сдвиг не в новых моделях.
 
-На этой неделе особенно хорошо видно: хороший production-agent — это уже не одна умная модель, а система из отдельных ролей, правил, памяти и проверок.
+AI-агенты постепенно превращаются в полноценную инженерную инфраструктуру — со своими правами, supply chain, метриками, профилями доступа и benchmark.
 
-**1. Project Memory становится отдельным слоем**
+**1. Plugin4Shell — supply chain AI-агентов уже нужно защищать как обычный production software**
 
-Cursor запустил Projects — слой над Cloud Agents для больших задач, миграций и целых приложений.
+Исследователи нашли уязвимость в plugin-механизмах Claude Code, Codex, GitHub Copilot и Gemini CLI.
 
-Самое интересное — общий набор артефактов и знаний, которые могут использовать разные агенты.
+Проблема была не в prompt injection.
 
-То есть память уже выглядит не как:
+Agent мог получить SHA проверенного plugin, но фактически выполнить другой код.
 
-Session Memory
+При автоматическом обновлении это потенциально могло происходить без нового действия пользователя.
 
-а как:
+Отсюда довольно важный pattern:
 
-Project → Shared Context → Decisions → Commands → Known Failures → Future Agents
+Marketplace → Artifact Verification → Sandbox → Capability Policy → Agent
 
-Например, один агент разобрался, как собирать и тестировать сервис.
+Skills, MCP extensions и plugins уже нельзя воспринимать просто как «дополнительный контекст».
 
-Следующий уже не начинает исследование с нуля.
-
-Это сильный паттерн для внутренних Agent Platform:
-
-**Memory лучше привязывать к project / repository / product, а не к чату.**
+Это executable supply chain.
 
 ⭐ **Практическая ценность:** 5/5
-📈 **Зрелость:** раннее внедрение
+🧪 **Зрелость:** нужно применять уже сейчас
 
-**2. Agent Permissions становятся настоящим Policy Gate**
 
-GitHub добавил централизованные enterprise permissions для операций Copilot-агентов.
+**2. GitHub переписал Copilot Runtime на Rust — большая часть работы сделана агентами**
 
-Для shell, файлов и network operations можно задать:
+Более 800 тысяч строк production Rust.
 
-DENY / REQUIRE APPROVAL / ALLOW
+128 pull requests.
 
-И локальные настройки разработчика не могут ослабить корпоративную policy.
+Около 14,5 недель работы.
 
-Это важный сдвиг.
+И главное — никакого «Agent, перепиши мне весь проект».
 
-Плохая модель:
+GitHub мигрировал систему постепенно:
 
-Agent получает prompt:
-«не делай ничего опасного»
+Architecture → Slice → Port → Tests → Review → Pre-release → Production → Next Slice
 
-Более зрелая:
+Основная ветка при этом постоянно оставалась рабочей.
 
-Agent → Operation → Policy Engine → DENY / APPROVAL / ALLOW
+Очень хороший пример того, как agentic development может сделать экономически реалистичными проекты, которые раньше потребовали бы отдельной команды на год или два.
 
-И тот же принцип стоит применять к:
+При этом компилятор не спас от semantic bugs — были проблемы с lifecycle, state management, behavioral contracts и test oracle.
 
-Git
-Jira
-MCP
-Deployment
-Secrets
-Production tools
+То есть:
+
+AI + Rust ≠ Correct Software
+
+Verification всё равно остаётся отдельной задачей.
 
 ⭐ **Практическая ценность:** 5/5
-📈 **Зрелость:** становится стандартом
+🧪 **Зрелость:** production pattern
 
-**3. AI Code Review превращается в настоящий verification pipeline**
 
-GitHub обновил Copilot Code Review.
+**3. AI Engineering начинают наконец нормально измерять**
 
-Теперь review может выполняться ensemble из нескольких агентов, а reviewer получил возможность запускать shell-команды, build, tests и targeted scripts.
+GitHub теперь позволяет видеть использование:
 
-То есть pipeline становится похож на:
+— Skills
+— Custom Agents
+— MCP servers
+— Plugins
+— Slash Commands
 
-Diff → Context → Reviewer Agents → Build / Tests → Findings → Re-review
+Отдельно можно смотреть использование Code Review, Cloud Agent, CLI и других AI-возможностей.
 
-Это уже не просто:
+OpenAI пошла ещё дальше — Codex analytics можно связывать с merged commits, review activity и дальше сравнивать с defects и rework.
 
-LLM → comment
+Это важный переход.
 
-Особенно интересно, что multi-agent здесь применяется там, где он действительно хорошо подходит — **для независимой проверки одного артефакта**, а не для хаотичного совместного написания кода.
+Плохая метрика:
+
+«70% разработчиков используют AI»
+
+Чуть лучше:
+
+«AI написал 40% кода»
+
+Нормальная:
+
+AI Usage → Cycle Time → Review Time → Rework → Defects → Cost
+
+Именно такие метрики нужны внутренним AI Platform.
 
 ⭐ **Практическая ценность:** 5/5
-🔥 **Стоит пробовать**
+🧪 **Зрелость:** можно применять
 
-**4. Jira → Agent → PR становится штатным workflow**
 
-GitHub добавил Jira integration в Copilot workflow.
+**4. OpenHands делает Agent Profile настоящим capability profile**
 
-Issue можно провести по цепочке:
+В новых версиях OpenHands можно ограничить Agent Profile конкретными MCP servers и secrets.
 
-Jira Issue → Investigation → Implementation → PR
+А automation можно запускать с заранее выбранным профилем.
 
-Плюс появились scheduled agent tasks:
+Получается интересная модель:
 
-hourly / daily / weekly / manual
+Requirement Agent → Jira + Confluence → без shell и production secrets
 
-Это ещё один шаг к event-driven AI SDLC.
+Coding Agent → Repository + Compiler → без production
 
-Coding Agent постепенно становится не только инструментом в IDE, а **фоновым участником software lifecycle**.
+Release Agent → Registry + Deploy → только через approval
+
+То есть:
+
+Agent Profile = Instructions + Tools + MCP + Secrets + Runtime Policy
+
+И это, на мой взгляд, намного более правильный путь, чем дать всем агентам все инструменты и написать в prompt:
+
+«пожалуйста, этим не пользуйся».
+
+⭐ **Практическая ценность:** 5/5
+🧪 **Зрелость:** хороший кандидат для пилота
+
+
+**5. Google подняла планку benchmark для Coding Agents**
+
+Android Bench 2.0 теперь содержит long-horizon задачи, которые у инженера могут занимать несколько дней или даже неделю.
 
 Например:
 
-CI failed → Agent Investigation
+— большая feature
+— dependency migration
+— новое приложение
+— перенос cross-platform приложения
 
-Dependency changed → Agent Assessment
+И здесь интересный результат.
 
-Stale docs → Agent Update
+Лучший приведённый результат — всего около 28% полностью успешно выполненных задач.
 
-Jira issue created → Agent Research
+То есть высокий результат на маленьких coding benchmarks ещё совершенно не означает:
 
-⭐ **Практическая ценность:** 5/5
-📈 **Зрелость:** уже можно использовать в пилотах
+«агенту можно отдать feature на неделю и вернуться за готовым результатом».
 
-**5. Independent Test Agent: агент не должен сам определять, что его код правильный**
+Отсюда хорошая идея для компаний:
 
-Очень интересная работа недели — ExecCritic.
+сделать собственный benchmark из реальных задач.
 
-Главная идея:
+Feature → Migration → API Change → Protocol Change → Multi-repo Task
 
-Coding Agent и Test Agent должны быть разными ролями.
+И регулярно проверять:
 
-Плохая схема:
-
-Agent → Code → сам написал тест → тест прошёл → Done
-
-Проблема очевидна: ошибка в реализации и ошибка в тесте могут совпасть.
-
-Более зрелая схема:
-
-Requirement → Test Agent → Test Qualification → Frozen Tests → Coding Agent → Verification
-
-То есть критерий успешности фиксируется **до того, как агент начинает подгонять под него реализацию**.
-
-В экспериментах качественный независимый test feedback заметно улучшал результат, а плохой — наоборот ухудшал.
-
-Отсюда важный вывод:
-
-**Execution Feedback полезен только тогда, когда oracle действительно независим и качественен.**
+Model + Agent Harness + Context + Tools + Verification
 
 ⭐ **Практическая ценность:** 5/5
-🧪 **Зрелость:** research → очень хороший кандидат для пилота
+🧪 **Зрелость:** ранняя, но очень полезная практика
 
-**6. SDD: агент плохо понимает, чего в спецификации не хватает**
-
-Ещё один очень важный research-сигнал — IdeaAMBIG.
-
-Исследование проверяло, умеет ли модель определить, что specification неполная.
-
-И результат довольно неприятный.
-
-Модели значительно лучше формулируют уточнение, **если им уже показали, где проблема**.
-
-Но самостоятельно обнаружить implementation-critical gap им пока сложно.
-
-То есть:
-
-Detailed Markdown ≠ Complete Specification
-
-Отсюда для SDD нужен отдельный этап:
-
-Specification → Readiness Review → Gap Detection → Clarification → Acceptance Criteria → Implementation
-
-И Requirement Agent стоит оценивать не по тому, насколько красиво он переписал требования, а по тому, **какие важные решения он не заметил**.
-
-⭐ **Практическая ценность:** 5/5
-🔥 **Одна из самых важных тем недели для SDD**
-
-**7. Security: секреты не должны попадать в model context**
-
-Интересный кейс 1Password.
-
-Codex у них участвует почти во всём SDLC:
-
-Planning → Design → Code → PR Review → Acceptance Testing → Production Investigation
-
-Но security устроена отдельно.
-
-В repository хранятся не plaintext credentials, а references.
-
-Реальный secret подставляет approved internal tool только в момент выполнения действия.
-
-То есть:
-
-Agent знает, какой credential нужен
-
-но
-
-Agent не обязан видеть сам credential
-
-Получается хороший принцип:
-
-Security Policy → Skill
-
-Secret → External Resolver
-
-Action → Approved Tool
-
-Credential → Injected at Execution Time
-
-Именно так, похоже, и должны строиться серьёзные Agent Platforms.
-
-⭐ **Практическая ценность:** 5/5
-📈 **Зрелость:** production pattern
 
 **💡 Что можно попробовать**
 
-**1. Specification Readiness Gate**
+**1. Agent Capability Profiles**
 
-Перед Coding Agent запускать отдельную проверку:
+Разделить доступы Requirement / Coding / Test / Release агентов.
 
-Missing Decisions + Ambiguities + Constraints + Acceptance Criteria
+Не только разные prompts — разные MCP, secrets и permissions.
 
-Если есть критичные пробелы — не начинать coding.
 
-**2. Independent Test Agent**
+**2. Agent Supply Chain Gate**
 
-Один агент формирует acceptance / regression tests.
+Проверять реальный artifact plugin/skill перед исполнением.
 
-Другой — пишет реализацию.
+И отдельно контролировать автоматические обновления.
 
-После проверки тесты фиксируются и не могут быть переписаны Coding Agent.
 
-**3. Agent Policy Matrix**
+**3. AI Engineering Dashboard**
 
-Для каждого типа операций задать:
+Считать не только использование AI:
 
-READ → ALLOW
+Agent Usage → Cycle Time → Review → Rework → Defects → Cost
 
-WRITE → scoped
 
-MERGE → APPROVAL
+**4. Long-Horizon Benchmark**
 
-RELEASE → APPROVAL
+Взять 20–50 реальных задач команды и регулярно проверять на них agent stack.
 
-PRODUCTION → DENY / APPROVAL
 
-**4. Project Memory**
+**5. Migration Factory**
 
-Хранить отдельно:
+Большую миграцию разбивать на independently testable slices:
 
-Research + Decisions + Commands + Test Instructions + Known Failures
+Spec → Implementation → Verification → Release → Next Slice
 
-И использовать это между разными Agent Runs.
-
-**5. Review Ensemble**
-
-Для high-risk PR запускать независимые reviewer roles:
-
-Correctness
-
-Architecture
-
-Compatibility
-
-Security
-
-А потом агрегировать findings.
 
 **Главный вывод недели**
 
-Следующий этап Agentic Development — это уже не «ещё более автономный Coding Agent».
+Вопрос постепенно меняется.
 
-Гораздо интереснее становится система разделённых ролей:
+Раньше:
 
-Requirement Agent ≠ Coding Agent
+«Насколько хорошо AI пишет код?»
 
-Coding Agent ≠ Test Agent
+Теперь:
 
-Review Agent ≠ Author Agent
+«Как правильно встроить AI-агента в инженерную систему?»
 
-Agent ≠ Policy Engine
+И для этого ему уже нужны:
 
-Model Context ≠ Secret Store
+Identity + Capability + Context + Supply Chain + Observability + Evaluation + Policy
 
-И production pipeline постепенно выглядит так:
+То есть следующий уровень AI-native SDLC — это уже не просто более умный Coding Agent.
 
-Requirement → Spec → Readiness Gate → Independent Tests → Coding Agent → Review Ensemble → Policy Gate → Human Review → Merge
-
-То есть AI-native SDLC неожиданно возвращается к очень классическим инженерным принципам:
-
-**separation of concerns + independent verification + least privilege + explicit contracts**
-
-Просто теперь эти принципы приходится применять уже не только к сервисам и людям, но и к агентам.
+Это инфраструктура вокруг него.
