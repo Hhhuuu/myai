@@ -1,207 +1,246 @@
 **🤖 AI Engineering Digest — главное за неделю**
 
-📅 **Период: 15–21 сентября 2026**
+📅 **Период: 22–28 сентября 2026**
 
-На этой неделе главный сдвиг не в новых моделях.
+Неделя получилась не про новые модели.
 
-AI-агенты постепенно превращаются в полноценную инженерную инфраструктуру — со своими правами, supply chain, метриками, профилями доступа и benchmark.
+Самые интересные изменения сейчас происходят вокруг агентов: память, sandbox, observability, управление контекстом, стоимость выполнения и reusable skills.
 
-**1. Plugin4Shell — supply chain AI-агентов уже нужно защищать как обычный production software**
+То есть главный вопрос постепенно меняется с:
 
-Исследователи нашли уязвимость в plugin-механизмах Claude Code, Codex, GitHub Copilot и Gemini CLI.
+«Какого Coding Agent выбрать?»
 
-Проблема была не в prompt injection.
+на:
 
-Agent мог получить SHA проверенного plugin, но фактически выполнить другой код.
-
-При автоматическом обновлении это потенциально могло происходить без нового действия пользователя.
-
-Отсюда довольно важный pattern:
-
-Marketplace → Artifact Verification → Sandbox → Capability Policy → Agent
-
-Skills, MCP extensions и plugins уже нельзя воспринимать просто как «дополнительный контекст».
-
-Это executable supply chain.
-
-⭐ **Практическая ценность:** 5/5
-🧪 **Зрелость:** нужно применять уже сейчас
+«Как построить вокруг агента нормальную инженерную систему?»
 
 
-**2. GitHub переписал Copilot Runtime на Rust — большая часть работы сделана агентами**
+**1. Project Memory становится общей памятью разных агентов**
 
-Более 800 тысяч строк production Rust.
+GitHub подключил Copilot Memory к Agentic Autofix.
 
-128 pull requests.
+Теперь при исправлении security-проблемы агент может использовать прошлый опыт repository, а найденный и применённый fix pattern сохранить для следующих задач.
 
-Около 14,5 недель работы.
+Эту же память затем могут использовать Code Review и Cloud Agent.
 
-И главное — никакого «Agent, перепиши мне весь проект».
+Получается:
 
-GitHub мигрировал систему постепенно:
+Security Fix → Verified Pattern → Repository Memory → Review / Coding / Future Fix
 
-Architecture → Slice → Port → Tests → Review → Pre-release → Production → Next Slice
+То есть память уже постепенно перестаёт быть историей одного чата.
 
-Основная ветка при этом постоянно оставалась рабочей.
+Она становится слоем знаний проекта.
 
-Очень хороший пример того, как agentic development может сделать экономически реалистичными проекты, которые раньше потребовали бы отдельной команды на год или два.
+Здесь, правда, сразу нужен второй механизм:
 
-При этом компилятор не спас от semantic bugs — были проблемы с lifecycle, state management, behavioral contracts и test oracle.
+Memory Promotion Gate.
 
-То есть:
-
-AI + Rust ≠ Correct Software
-
-Verification всё равно остаётся отдельной задачей.
+Не всё, что один раз сработало, должно автоматически становиться правилом проекта.
 
 ⭐ **Практическая ценность:** 5/5
-🧪 **Зрелость:** production pattern
+🧪 **Зрелость:** раннее внедрение
 
 
-**3. AI Engineering начинают наконец нормально измерять**
+**2. Для агентов появляется настоящий Control Plane**
 
-GitHub теперь позволяет видеть использование:
+GitHub за неделю добавил сразу несколько связанных вещей:
 
-— Skills
-— Custom Agents
-— MCP servers
-— Plugins
-— Slash Commands
+— sandbox для filesystem, network и credentials
+— OpenTelemetry traces для действий агента
+— assisted approvals для tool calls
 
-Отдельно можно смотреть использование Code Review, Cloud Agent, CLI и других AI-возможностей.
+Вместе это уже выглядит примерно так:
 
-OpenAI пошла ещё дальше — Codex analytics можно связывать с merged commits, review activity и дальше сравнивать с defects и rework.
+Agent → Policy → Sandbox → Tool → Trace → Audit
 
-Это важный переход.
+То есть безопасность больше не должна жить в prompt:
 
-Плохая метрика:
+«не делай ничего опасного».
 
-«70% разработчиков используют AI»
+Ограничения можно применять технически, а действия агента — видеть в обычной observability-системе.
 
-Чуть лучше:
-
-«AI написал 40% кода»
-
-Нормальная:
-
-AI Usage → Cycle Time → Review Time → Rework → Defects → Cost
-
-Именно такие метрики нужны внутренним AI Platform.
+Для внутренних Agent Platform это, кажется, становится базовой архитектурой.
 
 ⭐ **Практическая ценность:** 5/5
 🧪 **Зрелость:** можно применять
 
 
-**4. OpenHands делает Agent Profile настоящим capability profile**
+**3. Context Engineering становится ещё и Cost Engineering**
 
-В новых версиях OpenHands можно ограничить Agent Profile конкретными MCP servers и secrets.
+OpenAI отдельно обновила prompt caching для long-running agents.
 
-А automation можно запускать с заранее выбранным профилем.
+Появились:
 
-Получается интересная модель:
+— cache hit metrics
+— диагностика cache miss
+— explicit cache breakpoints
+— prewarming
 
-Requirement Agent → Jira + Confluence → без shell и production secrets
+И здесь интересен сам архитектурный принцип.
 
-Coding Agent → Repository + Compiler → без production
+Контекст агента лучше строить так:
 
-Release Agent → Registry + Deploy → только через approval
+Stable Instructions → Tool Schemas → Project Knowledge → Dynamic Task Context
 
-То есть:
+Причём tool schemas лучше не постоянно добавлять и удалять, а сохранять стабильными и ограничивать доступ через policy.
 
-Agent Profile = Instructions + Tools + MCP + Secrets + Runtime Policy
+Получается новая полезная метрика:
 
-И это, на мой взгляд, намного более правильный путь, чем дать всем агентам все инструменты и написать в prompt:
+Context Cache Hit Rate
 
-«пожалуйста, этим не пользуйся».
+Для агентов, которые работают часами и постоянно таскают большой project context, это уже напрямую влияет на стоимость и latency.
+
+⭐ **Практическая ценность:** 5/5
+🧪 **Зрелость:** production-ready
+
+
+**4. Cloud Architect → Local Agent Workforce**
+
+Google показала довольно интересный hybrid pattern.
+
+Сильная облачная модель выступает архитектором и разбивает работу на задачи.
+
+При этом она может видеть только имена файлов и описание задачи.
+
+Сам исходный код остаётся локально.
+
+Дальше локальные агенты:
+
+Local Agent → Code → Test → Critic → Fix
+
+То есть можно разделить:
+
+Planning → Cloud
+
+Source Code → Local
+
+Secrets → Local
+
+Build / Tests → Local
+
+Очень интересная схема для закрытых контуров, embedded и проектов, где исходники нельзя отправлять наружу.
 
 ⭐ **Практическая ценность:** 5/5
 🧪 **Зрелость:** хороший кандидат для пилота
 
 
-**5. Google подняла планку benchmark для Coding Agents**
+**5. Поставщики начинают отдавать не только SDK, но и Skills**
 
-Android Bench 2.0 теперь содержит long-horizon задачи, которые у инженера могут занимать несколько дней или даже неделю.
+Cloudflare выпустила Turnstile Spin.
 
-Например:
+Agent сам находит frontend и backend места интеграции, строит plan, ждёт approval и затем подключает или исправляет Turnstile.
 
-— большая feature
-— dependency migration
-— новое приложение
-— перенос cross-platform приложения
+Самое интересное здесь не Turnstile.
 
-И здесь интересный результат.
+А модель доставки продукта.
 
-Лучший приведённый результат — всего около 28% полностью успешно выполненных задач.
+Раньше:
 
-То есть высокий результат на маленьких coding benchmarks ещё совершенно не означает:
+Product → Docs → SDK → Developer
 
-«агенту можно отдать feature на неделю и вернуться за готовым результатом».
+Теперь:
 
-Отсюда хорошая идея для компаний:
+Product → Docs → SDK → Agent Skill → Verification
 
-сделать собственный benchmark из реальных задач.
+То есть внутренняя платформа тоже может поставлять вместе с компонентом официальный skill:
 
-Feature → Migration → API Change → Protocol Change → Multi-repo Task
+«подключить logging»
 
-И регулярно проверять:
+«мигрировать API»
 
-Model + Agent Harness + Context + Tools + Verification
+«добавить observability»
+
+«обновить protocol»
+
+И агент уже знает правильный путь интеграции.
 
 ⭐ **Практическая ценность:** 5/5
-🧪 **Зрелость:** ранняя, но очень полезная практика
+🧪 **Зрелость:** раннее внедрение
+
+
+**6. Skills лучше проектировать людям, а не генерировать самим агентом**
+
+Очень интересное исследование недели.
+
+Авторы разобрали больше тысячи Coding Agent trajectories и нашли три постоянных источника лишней стоимости:
+
+— повторный поиск уже найденной информации
+— генерация похожих вспомогательных скриптов
+— повторные запуски одинаковых тестов
+
+Они встречались в 79–98% задач и могли давать до 22,75% стоимости выполнения.
+
+Но самое интересное дальше.
+
+Agent-generated Skills оказались довольно слабыми — агент часто сохранял слишком конкретные детали одной задачи.
+
+А developer-designed Skills, описывающие высокоуровневый способ работы, снижали стоимость до 41,73%.
+
+То есть хороший pipeline может выглядеть так:
+
+Agent Trajectories → Analytics → Human Pattern → Skill → Evaluation
+
+А не:
+
+Agent → сам написал себе Skill → используем всегда
+
+Отсюда ещё одно полезное разделение:
+
+Memory ≠ Skill
+
+Memory — опыт конкретного проекта.
+
+Skill — обобщённый способ выполнения работы.
+
+⭐ **Практическая ценность:** 5/5
+🧪 **Зрелость:** research, но уже очень прикладной
 
 
 **💡 Что можно попробовать**
 
-**1. Agent Capability Profiles**
+**1. Agent Execution Envelope**
 
-Разделить доступы Requirement / Coding / Test / Release агентов.
+Запускать Coding Agent через:
 
-Не только разные prompts — разные MCP, secrets и permissions.
+Sandbox + Permissions + Approval + Telemetry
 
-
-**2. Agent Supply Chain Gate**
-
-Проверять реальный artifact plugin/skill перед исполнением.
-
-И отдельно контролировать автоматические обновления.
+Чтобы поведение агента было не просто разрешено prompt-ом, а технически ограничено.
 
 
-**3. AI Engineering Dashboard**
+**2. Memory Promotion Gate**
 
-Считать не только использование AI:
+После работы агента отдельно решать:
 
-Agent Usage → Cycle Time → Review → Rework → Defects → Cost
-
-
-**4. Long-Horizon Benchmark**
-
-Взять 20–50 реальных задач команды и регулярно проверять на них agent stack.
+что сохранить как project memory, что оставить только в истории задачи, а что вообще удалить.
 
 
-**5. Migration Factory**
+**3. Context Cache Architecture**
 
-Большую миграцию разбивать на independently testable slices:
+Разделить контекст на стабильную и динамическую части и начать измерять cache hit rate.
 
-Spec → Implementation → Verification → Release → Next Slice
+
+**4. Cloud Planner + Local Workers**
+
+Попробовать схему, где облачная модель только планирует, а repository и build остаются внутри локального контура.
+
+
+**5. Curated Skills**
+
+Посмотреть повторяющиеся agent trajectories и вручную выделить 5–10 высокоуровневых engineering skills.
 
 
 **Главный вывод недели**
 
-Вопрос постепенно меняется.
+Самая интересная часть AI Engineering постепенно перемещается из самой модели в инфраструктуру вокруг неё.
 
-Раньше:
+У production-агента теперь появляются:
 
-«Насколько хорошо AI пишет код?»
+Memory + Context + Skills + Policy + Sandbox + Observability + Verification
 
-Теперь:
+И AI-native SDLC начинает всё больше выглядеть не как:
 
-«Как правильно встроить AI-агента в инженерную систему?»
+Prompt → Model → Code
 
-И для этого ему уже нужны:
+а как:
 
-Identity + Capability + Context + Supply Chain + Observability + Evaluation + Policy
-
-То есть следующий уровень AI-native SDLC — это уже не просто более умный Coding Agent.
-
-Это инфраструктура вокруг него.
+Project Memory → Context → Agent → Policy → Sandbox → Verification → Telemetry → Learning
