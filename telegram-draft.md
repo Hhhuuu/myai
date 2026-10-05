@@ -1,246 +1,269 @@
 **🤖 AI Engineering Digest — главное за неделю**
 
-📅 **Период: 22–28 сентября 2026**
+📅 **Период: 29 сентября – 5 октября 2026**
 
-Неделя получилась не про новые модели.
+На этой неделе главный сдвиг снова происходит не в моделях.
 
-Самые интересные изменения сейчас происходят вокруг агентов: память, sandbox, observability, управление контекстом, стоимость выполнения и reusable skills.
+Вокруг Coding Agent начинает формироваться вполне обычная инженерная инфраструктура: workflow engine, tool gateway, policies, code review API и отдельный слой подготовки контекста.
 
-То есть главный вопрос постепенно меняется с:
+Всё больше похоже на то, что production Agentic SDLC будет строиться не как:
 
-«Какого Coding Agent выбрать?»
+Prompt → Agent → Code
 
-на:
+а как:
 
-«Как построить вокруг агента нормальную инженерную систему?»
+Spec → Context → Workflow → Agent → Policy → Tools → Verification → Review
 
 
-**1. Project Memory становится общей памятью разных агентов**
+**1. Workflow-as-Code вместо «пусть агент сам разберётся»**
 
-GitHub подключил Copilot Memory к Agentic Autofix.
+GitHub представил Dynamic Workflows для Copilot.
 
-Теперь при исправлении security-проблемы агент может использовать прошлый опыт repository, а найденный и применённый fix pattern сохранить для следующих задач.
+Теперь можно программно определить:
 
-Эту же память затем могут использовать Code Review и Cloud Agent.
+— какие стадии проходит задача
+— что выполняется параллельно
+— где вызывается Agent
+— какие structured results он должен вернуть
+— где нужен verification
+— где процесс должен остановиться и дождаться человека
 
-Получается:
+Например:
 
-Security Fix → Verified Pattern → Repository Memory → Review / Coding / Future Fix
+Release Checks → Agent analyzes failures → Human Checkpoint → Fix Agent → Verification
 
-То есть память уже постепенно перестаёт быть историей одного чата.
+Или:
 
-Она становится слоем знаний проекта.
+Research → Plan → Implementation → Verification
 
-Здесь, правда, сразу нужен второй механизм:
+Это важное разделение:
 
-Memory Promotion Gate.
+Orchestrator ≠ Agent
 
-Не всё, что один раз сработало, должно автоматически становиться правилом проекта.
+Агенту оставляют анализ и принятие локальных решений.
+
+Сам инженерный процесс становится детерминированным кодом.
+
+Для SDD это особенно интересно: specification может описывать не только результат, но и workflow, через который изменение должно пройти.
 
 ⭐ **Практическая ценность:** 5/5
 🧪 **Зрелость:** раннее внедрение
 
+[Источник — GitHub Dynamic Workflows](https://github.blog/changelog/2026-10-01-dynamic-workflows-in-copilot-cli-and-the-copilot-app/)
 
-**2. Для агентов появляется настоящий Control Plane**
 
-GitHub за неделю добавил сразу несколько связанных вещей:
+**2. Uber построил MCP Gateway на 800+ серверов и 5000+ tools**
 
-— sandbox для filesystem, network и credentials
-— OpenTelemetry traces для действий агента
-— assisted approvals для tool calls
+Очень интересная архитектура от Uber.
 
-Вместе это уже выглядит примерно так:
+Вместо того чтобы каждая команда самостоятельно подключала MCP, компания сделала общую платформу:
 
-Agent → Policy → Sandbox → Tool → Trace → Audit
+Existing API → MCP Registry → Gateway → Auth / Policy / Redaction → Agent
 
-То есть безопасность больше не должна жить в prompt:
+Причём HTTP, gRPC и TChannel API можно автоматически превратить в MCP tools.
 
-«не делай ничего опасного».
+Новые tools появляются disabled-by-default и должны быть разрешены владельцем сервиса.
 
-Ограничения можно применять технически, а действия агента — видеть в обычной observability-системе.
+Но ещё интереснее решение проблемы context bloat.
 
-Для внутренних Agent Platform это, кажется, становится базовой архитектурой.
+Uber не кладёт определения всех 5000 tools в контекст модели.
+
+Agent постепенно делает:
+
+Discover Server → Discover Tools → Get Schema → Invoke Tool
+
+А для Coding Agents используется Code Mode: большой ответ инструмента можно сохранить в файл, после чего агент прочитает только нужные части.
+
+Это уже важный architectural pattern:
+
+Tool Discovery ≠ Tool Context
+
+Все возможности платформы совершенно не обязательно постоянно держать перед моделью.
+
+⭐ **Практическая ценность:** 5/5
+🧪 **Зрелость:** production
+
+[Источник — Uber Engineering: Designing MCP Gateway](https://www.uber.com/us/en/blog/designing-mcp-gateway/)
+
+
+**3. AI Code Review становится обычным API**
+
+GitHub открыл Copilot Code Review через REST и GraphQL.
+
+Это небольшое с виду изменение сильно влияет на процесс.
+
+Теперь AI Review не обязательно запускать человеком кнопкой в UI.
+
+Можно встроить его непосредственно в SDLC:
+
+PR → Build → Tests → Static Analysis → AI Review → Policy → Human Review → Merge
+
+Например, автоматически запускать глубокий AI Review:
+
+— для изменений public API
+— для больших diff
+— для security-sensitive компонентов
+— перед release
+— после изменений, сделанных Coding Agent
+
+При этом важное разделение остаётся:
+
+AI Review ≠ Final Approval
+
+Это дополнительный quality gate, а не замена владельца кода.
 
 ⭐ **Практическая ценность:** 5/5
 🧪 **Зрелость:** можно применять
 
-
-**3. Context Engineering становится ещё и Cost Engineering**
-
-OpenAI отдельно обновила prompt caching для long-running agents.
-
-Появились:
-
-— cache hit metrics
-— диагностика cache miss
-— explicit cache breakpoints
-— prewarming
-
-И здесь интересен сам архитектурный принцип.
-
-Контекст агента лучше строить так:
-
-Stable Instructions → Tool Schemas → Project Knowledge → Dynamic Task Context
-
-Причём tool schemas лучше не постоянно добавлять и удалять, а сохранять стабильными и ограничивать доступ через policy.
-
-Получается новая полезная метрика:
-
-Context Cache Hit Rate
-
-Для агентов, которые работают часами и постоянно таскают большой project context, это уже напрямую влияет на стоимость и latency.
-
-⭐ **Практическая ценность:** 5/5
-🧪 **Зрелость:** production-ready
+[Источник — GitHub Copilot Code Review API](https://github.blog/changelog/2026-10-02-copilot-code-review-api-support-and-new-default-effort-level/)
 
 
-**4. Cloud Architect → Local Agent Workforce**
+**4. Большой Spec сам по себе не спасает Coding Agent**
 
-Google показала довольно интересный hybrid pattern.
+Вышел довольно показательный benchmark LoLBench.
 
-Сильная облачная модель выступает архитектором и разбивает работу на задачи.
+100 задач.
 
-При этом она может видеть только имена файлов и описание задачи.
+29 крупных software systems.
 
-Сам исходный код остаётся локально.
+Средний repository — около 2,4 млн строк кода.
 
-Дальше локальные агенты:
+Описание задачи — около 5000 слов.
 
-Local Agent → Code → Test → Critic → Fix
+Reference implementation — около 5500 изменённых строк.
 
-То есть можно разделить:
+Лучший из 28 протестированных agents полностью решил только 14% задач.
 
-Planning → Cloud
+Одна из главных причин — агент плохо определяет, где именно в огромной системе нужно делать изменение.
 
-Source Code → Local
+Но когда ему дополнительно давали правильное дерево релевантных файлов и API specifications, success rate рос на 16–22 процентных пункта.
 
-Secrets → Local
+Для SDD отсюда следует очень важный вывод.
 
-Build / Tests → Local
+Недостаточно:
 
-Очень интересная схема для закрытых контуров, embedded и проектов, где исходники нельзя отправлять наружу.
+Requirement → Specification → Coding Agent
+
+Нужен ещё слой:
+
+Specification → Repository Map → Relevant Components → API Contracts → Coding Agent
+
+То есть:
+
+SDD + Context Engineering
+
+похоже, должны развиваться вместе.
 
 ⭐ **Практическая ценность:** 5/5
-🧪 **Зрелость:** хороший кандидат для пилота
+🧪 **Зрелость:** research, но очень прикладной
+
+[Исследование — LoLBench](https://arxiv.org/abs/2609.37143)
 
 
-**5. Поставщики начинают отдавать не только SDK, но и Skills**
+**5. Agent ≠ Policy Engine**
 
-Cloudflare выпустила Turnstile Spin.
+Ещё одно интересное исследование — HiSentinel.
 
-Agent сам находит frontend и backend места интеграции, строит plan, ждёт approval и затем подключает или исправляет Turnstile.
+Авторы поставили перед Coding Agent небольшой дополнительный model, который проверяет действие до выполнения.
 
-Самое интересное здесь не Turnstile.
+Для каждого шага он выбирает:
 
-А модель доставки продукта.
+Allow
 
-Раньше:
+Redirect
 
-Product → Docs → SDK → Developer
+Human Assistance
 
-Теперь:
+То есть вместо:
 
-Product → Docs → SDK → Agent Skill → Verification
+Agent → Action → Error → Recovery
 
-То есть внутренняя платформа тоже может поставлять вместе с компонентом официальный skill:
+получается:
 
-«подключить logging»
+Agent → Proposed Action → Sentinel → Execute
 
-«мигрировать API»
+В экспериментах такой подход повысил completion rate до 14% на одном из benchmark.
 
-«добавить observability»
+Идея особенно интересна для корпоративных платформ.
 
-«обновить protocol»
+Например, Sentinel или Policy Layer можно поставить перед:
 
-И агент уже знает правильный путь интеграции.
+— git push
+— release/tag
+— удалением файлов
+— database migration
+— production tools
+— использованием secrets
 
-⭐ **Практическая ценность:** 5/5
-🧪 **Зрелость:** раннее внедрение
+То есть Coding Agent больше не должен одновременно быть и исполнителем, и тем, кто решает, можно ли ему выполнять собственное действие.
 
+⭐ **Практическая ценность:** 4/5
+🧪 **Зрелость:** research / хороший кандидат для пилота
 
-**6. Skills лучше проектировать людям, а не генерировать самим агентом**
-
-Очень интересное исследование недели.
-
-Авторы разобрали больше тысячи Coding Agent trajectories и нашли три постоянных источника лишней стоимости:
-
-— повторный поиск уже найденной информации
-— генерация похожих вспомогательных скриптов
-— повторные запуски одинаковых тестов
-
-Они встречались в 79–98% задач и могли давать до 22,75% стоимости выполнения.
-
-Но самое интересное дальше.
-
-Agent-generated Skills оказались довольно слабыми — агент часто сохранял слишком конкретные детали одной задачи.
-
-А developer-designed Skills, описывающие высокоуровневый способ работы, снижали стоимость до 41,73%.
-
-То есть хороший pipeline может выглядеть так:
-
-Agent Trajectories → Analytics → Human Pattern → Skill → Evaluation
-
-А не:
-
-Agent → сам написал себе Skill → используем всегда
-
-Отсюда ещё одно полезное разделение:
-
-Memory ≠ Skill
-
-Memory — опыт конкретного проекта.
-
-Skill — обобщённый способ выполнения работы.
-
-⭐ **Практическая ценность:** 5/5
-🧪 **Зрелость:** research, но уже очень прикладной
+[Исследование — HiSentinel](https://arxiv.org/abs/2609.39957)
 
 
 **💡 Что можно попробовать**
 
-**1. Agent Execution Envelope**
+**1. Agent Workflow-as-Code**
 
-Запускать Coding Agent через:
+Взять один длинный процесс — например feature implementation или release — и явно описать:
 
-Sandbox + Permissions + Approval + Telemetry
+Spec → Plan → Coding Agent → Tests → Review → Human Gate
 
-Чтобы поведение агента было не просто разрешено prompt-ом, а технически ограничено.
-
-
-**2. Memory Promotion Gate**
-
-После работы агента отдельно решать:
-
-что сохранить как project memory, что оставить только в истории задачи, а что вообще удалить.
+Не позволять одному Agent самому придумывать весь lifecycle задачи.
 
 
-**3. Context Cache Architecture**
+**2. MCP Registry**
 
-Разделить контекст на стабильную и динамическую части и начать измерять cache hit rate.
+Перед тем как создавать десятки MCP integrations, завести единый каталог:
+
+Tool → Owner → Permissions → Description → Version → Status
+
+А самим агентам отдавать tools динамически.
 
 
-**4. Cloud Planner + Local Workers**
+**3. AI Review Gate**
 
-Попробовать схему, где облачная модель только планирует, а repository и build остаются внутри локального контура.
+После CI автоматически отправлять MR в AI Code Review.
+
+Но использовать его как дополнительный signal перед человеком, а не как автоматическое разрешение merge.
 
 
-**5. Curated Skills**
+**4. Repository Grounding**
 
-Посмотреть повторяющиеся agent trajectories и вручную выделить 5–10 высокоуровневых engineering skills.
+Перед Coding Agent автоматически собирать:
+
+Relevant Files + APIs + Dependencies + ADR + Existing Tests
+
+И только потом отдавать specification.
+
+
+**5. Pre-execution Policy**
+
+Начать хотя бы с пяти операций:
+
+Deploy
+
+Release
+
+Push
+
+Delete
+
+Secrets
+
+Перед их выполнением Agent должен получить отдельное разрешение policy layer или человека.
 
 
 **Главный вывод недели**
 
-Самая интересная часть AI Engineering постепенно перемещается из самой модели в инфраструктуру вокруг неё.
+Agentic Development начинает повторять путь обычных production-систем.
 
-У production-агента теперь появляются:
+Сначала был один Agent с большим prompt.
 
-Memory + Context + Skills + Policy + Sandbox + Observability + Verification
+Теперь вокруг него постепенно появляются:
 
-И AI-native SDLC начинает всё больше выглядеть не как:
+Workflow Engine + Context Layer + Tool Gateway + Policy + Observability + Verification + Review
 
-Prompt → Model → Code
-
-а как:
-
-Project Memory → Context → Agent → Policy → Sandbox → Verification → Telemetry → Learning
+И, похоже, именно качество этой инфраструктуры, а не только выбор модели, будет определять насколько далеко можно безопасно делегировать разработку AI-агентам.
