@@ -1,269 +1,314 @@
 **🤖 AI Engineering Digest — главное за неделю**
 
-📅 **Период: 29 сентября – 5 октября 2026**
+📅 **Период: 6–12 октября 2026**
 
-На этой неделе главный сдвиг снова происходит не в моделях.
+На этой неделе интересные изменения происходят не столько в моделях, сколько в архитектуре систем вокруг AI-агентов.
 
-Вокруг Coding Agent начинает формироваться вполне обычная инженерная инфраструктура: workflow engine, tool gateway, policies, code review API и отдельный слой подготовки контекста.
+Atlassian предлагает сделать агентов полноценными участниками команды, GitLab — управлять всем Agentic SDLC как единой системой, а новые исследования показывают, почему долгоживущие агенты не обязательно должны сохранять свою историю.
 
-Всё больше похоже на то, что production Agentic SDLC будет строиться не как:
+Главная тенденция:
 
-Prompt → Agent → Code
+**Stateful System + Stateless Agents**
 
-а как:
-
-Spec → Context → Workflow → Agent → Policy → Tools → Verification → Review
+То есть постоянными становятся знания проекта, состояние задач и результаты работы, а не конкретная сессия AI.
 
 
-**1. Workflow-as-Code вместо «пусть агент сам разберётся»**
+**1. Atlassian AMP — AI-агенты становятся участниками команды**
 
-GitHub представил Dynamic Workflows для Copilot.
+Atlassian представила Agentic Multiplayer Protocol.
 
-Теперь можно программно определить:
+Идея — перестать воспринимать AI как отдельное окно чата.
 
-— какие стадии проходит задача
-— что выполняется параллельно
-— где вызывается Agent
-— какие structured results он должен вернуть
-— где нужен verification
-— где процесс должен остановиться и дождаться человека
+Теперь агенты могут работать непосредственно в Jira, Confluence и других инструментах.
 
-Например:
+У каждого агента появляются:
 
-Release Checks → Agent analyzes failures → Human Checkpoint → Fix Agent → Verification
+— собственная идентичность
+— владелец
+— права доступа
+— текущие задачи
+— история действий
+— общий контекст проекта
 
-Или:
+Причём даже локальные сессии Coding Agent можно отображать в Jira.
 
-Research → Plan → Implementation → Verification
+Получается:
 
-Это важное разделение:
+Jira Task → Agent Assignment → Agent Session → Shared Progress → Review
 
-Orchestrator ≠ Agent
+Это довольно интересный переход.
 
-Агенту оставляют анализ и принятие локальных решений.
+Раньше команда видела только итоговый PR.
 
-Сам инженерный процесс становится детерминированным кодом.
+Теперь появляется возможность видеть саму работу агента.
 
-Для SDD это особенно интересно: specification может описывать не только результат, но и workflow, через который изменение должно пройти.
+Для Platform Engineering отсюда следует новая потребность:
+
+Agent Registry = Identity + Owner + Permissions + Task + Status + Audit
+
+Важно: AMP пока скорее набор технологий и паттернов Atlassian, а не универсальный открытый стандарт вроде MCP.
 
 ⭐ **Практическая ценность:** 5/5
 🧪 **Зрелость:** раннее внедрение
 
-[Источник — GitHub Dynamic Workflows](https://github.blog/changelog/2026-10-01-dynamic-workflows-in-copilot-cli-and-the-copilot-app/)
+[Источник — Atlassian AMP](https://www.atlassian.com/platform/agentic-multiplayer-protocol)
 
 
-**2. Uber построил MCP Gateway на 800+ серверов и 5000+ tools**
+**2. GitLab — Governed Software Factory**
 
-Очень интересная архитектура от Uber.
+GitLab представила концепцию управляемой программной фабрики для AI-native SDLC.
 
-Вместо того чтобы каждая команда самостоятельно подключала MCP, компания сделала общую платформу:
+Вместо набора разрозненных инструментов компания предлагает объединить:
 
-Existing API → MCP Registry → Gateway → Auth / Policy / Redaction → Agent
+— Agent Workflows
+— Repository Context
+— CI/CD
+— Security
+— Artifact Management
+— Policies
+— Outcome Analytics
 
-Причём HTTP, gRPC и TChannel API можно автоматически превратить в MCP tools.
+Особенно интересен GitLab Orbit.
 
-Новые tools появляются disabled-by-default и должны быть разрешены владельцем сервиса.
+Это общий слой контекста, который связывает:
 
-Но ещё интереснее решение проблемы context bloat.
+Code + Issues + Pipelines + Deployments + Production Signals
 
-Uber не кладёт определения всех 5000 tools в контекст модели.
+По данным GitLab, Orbit уже используют более 3500 организаций.
 
-Agent постепенно делает:
+Компания сообщает, что дополнительный контекст помогает агентам уменьшать количество повторных попыток и расход токенов.
 
-Discover Server → Discover Tools → Get Schema → Invoke Tool
+Но важнее сама архитектура.
 
-А для Coding Agents используется Code Mode: большой ответ инструмента можно сохранить в файл, после чего агент прочитает только нужные части.
+Теперь Agent может получать не просто исходный код, а информацию о том:
 
-Это уже важный architectural pattern:
+— почему компонент существует
+— какие задачи его меняли
+— от чего он зависит
+— какие проверки нужно выполнить
+— какие проблемы возникали ранее
 
-Tool Discovery ≠ Tool Context
+Это уже больше, чем обычный Code RAG.
 
-Все возможности платформы совершенно не обязательно постоянно держать перед моделью.
+Для внутренних платформ получается хорошее разделение:
+
+Knowledge Plane → Execution Plane → Governance Plane → Outcome Plane
 
 ⭐ **Практическая ценность:** 5/5
-🧪 **Зрелость:** production
+🧪 **Зрелость:** раннее внедрение, часть возможностей уже доступна
 
-[Источник — Uber Engineering: Designing MCP Gateway](https://www.uber.com/us/en/blog/designing-mcp-gateway/)
+[Источник — GitLab Governed Software Factory](https://about.gitlab.com/press/releases/2026-10-06-gitlab-announces-the-foundation-for-the-governed-software-factory/)
 
 
-**3. AI Code Review становится обычным API**
+**3. Stateless Language Agents — агенту не обязательно помнить свою историю**
 
-GitHub открыл Copilot Code Review через REST и GraphQL.
+Очень интересное исследование от 6 октября.
 
-Это небольшое с виду изменение сильно влияет на процесс.
+Авторы предложили архитектуру, в которой AI-агенты вообще не сохраняют историю разговоров между запусками.
 
-Теперь AI Review не обязательно запускать человеком кнопкой в UI.
+Вместо этого состояние работы хранится отдельно.
 
-Можно встроить его непосредственно в SDLC:
+Например:
 
-PR → Build → Tests → Static Analysis → AI Review → Policy → Human Review → Merge
+Project State:
 
-Например, автоматически запускать глубокий AI Review:
+— выполненные эксперименты
+— принятые решения
+— результаты тестов
+— неудачные попытки
+— текущий прогресс
 
-— для изменений public API
-— для больших diff
-— для security-sensitive компонентов
-— перед release
-— после изменений, сделанных Coding Agent
+Когда агент запускается, система формирует ему новый контекст только из нужных данных.
 
-При этом важное разделение остаётся:
+Получается:
 
-AI Review ≠ Final Approval
+Project State → Context Builder → Agent → Result → State Update
 
-Это дополнительный quality gate, а не замена владельца кода.
+При следующем запуске может использоваться совершенно новый агент.
+
+Причём в системе есть две роли:
+
+Advisor — анализирует общий прогресс и распределяет задачи.
+
+Worker — получает конкретное задание и минимально необходимый контекст.
+
+В отдельных экспериментах такая архитектура достигала результата сильнейшего baseline с экономией более 84% токенов.
+
+Это не универсальная цифра для всех задач, но сам принцип очень интересен.
+
+Особенно для Repository Memory.
+
+Вместо:
+
+Agent → бесконечная история сообщений
+
+получается:
+
+Project Memory → Relevant Context → Agent
+
+То есть:
+
+**Memory ≠ Conversation History**
+
+И, возможно, именно такой подход будет удобнее для долгоживущих инженерных задач.
+
+⭐ **Практическая ценность:** 5/5
+🧪 **Зрелость:** research / хороший кандидат для пилота
+
+[Исследование — Stateless Language Agents](https://arxiv.org/abs/2610.07625)
+
+
+**4. HERMES — компоненты репозитория становятся AI-native объектами**
+
+Ещё одно интересное исследование недели.
+
+Авторы предложили концепцию Dev-Primitives.
+
+Идея: вместо того чтобы каждый раз заставлять Coding Agent исследовать весь репозиторий, представить компоненты как самостоятельные единицы взаимодействия.
+
+Например:
+
+Repository
+
+→ CAN Transport Primitive
+
+→ Protocol Primitive
+
+→ Device Manager Primitive
+
+→ Diagnostics Primitive
+
+Каждый Primitive содержит знания о собственной реализации и зависимостях и предоставляет агенту специализированный интерфейс для работы с компонентом.
+
+Тогда задача:
+
+«Измени механизм reconnect»
+
+может выполняться так:
+
+Requirement → Relevant Components → Dependency Analysis → Implementation → Verification
+
+Это интересное развитие Code RAG.
+
+Обычный Code RAG отвечает:
+
+«Где находится нужный код?»
+
+Dev-Primitives пытаются ответить:
+
+«С какими компонентами нужно работать и как правильно их изменить?»
+
+Авторы сообщают об улучшении результатов на 12,4% относительно сопоставимых agent harnesses.
+
+Пока это эксперимент, но идея хорошо подходит для больших проектов с множеством компонентов.
+
+⭐ **Практическая ценность:** 5/5
+🧪 **Зрелость:** эксперимент
+
+[Исследование — HERMES / Dev-Primitives](https://arxiv.org/abs/2610.07832)
+
+
+**5. GitHub Copilot — Sandbox стал доступен всем**
+
+GitHub объявила общую доступность локального sandbox для Copilot CLI, Copilot App и VS Code Agent Host.
+
+Теперь действия агента можно технически ограничивать:
+
+— доступ к файлам
+— доступ к сети
+— использование credentials
+— выполнение команд
+— доступ к системным ресурсам
+
+Причём ограничения могут задаваться централизованно организацией.
+
+Это важный переход.
+
+Раньше:
+
+Agent → Prompt «не делай ничего опасного»
+
+Теперь:
+
+Agent → Policy → Sandbox → Tools
+
+Используется Microsoft eXecution Container (MXC).
+
+Сам MXC — открытый проект с поддержкой Windows, Linux и macOS.
+
+У него есть SDK для Rust, .NET и Node.js.
+
+То есть похожую изоляцию можно использовать и для собственной Agent Platform.
 
 ⭐ **Практическая ценность:** 5/5
 🧪 **Зрелость:** можно применять
 
-[Источник — GitHub Copilot Code Review API](https://github.blog/changelog/2026-10-02-copilot-code-review-api-support-and-new-default-effort-level/)
+[Источник — GitHub Sandbox GA](https://github.blog/changelog/2026-10-07-local-sandboxing-for-github-copilot-now-generally-available/)
 
-
-**4. Большой Spec сам по себе не спасает Coding Agent**
-
-Вышел довольно показательный benchmark LoLBench.
-
-100 задач.
-
-29 крупных software systems.
-
-Средний repository — около 2,4 млн строк кода.
-
-Описание задачи — около 5000 слов.
-
-Reference implementation — около 5500 изменённых строк.
-
-Лучший из 28 протестированных agents полностью решил только 14% задач.
-
-Одна из главных причин — агент плохо определяет, где именно в огромной системе нужно делать изменение.
-
-Но когда ему дополнительно давали правильное дерево релевантных файлов и API specifications, success rate рос на 16–22 процентных пункта.
-
-Для SDD отсюда следует очень важный вывод.
-
-Недостаточно:
-
-Requirement → Specification → Coding Agent
-
-Нужен ещё слой:
-
-Specification → Repository Map → Relevant Components → API Contracts → Coding Agent
-
-То есть:
-
-SDD + Context Engineering
-
-похоже, должны развиваться вместе.
-
-⭐ **Практическая ценность:** 5/5
-🧪 **Зрелость:** research, но очень прикладной
-
-[Исследование — LoLBench](https://arxiv.org/abs/2609.37143)
-
-
-**5. Agent ≠ Policy Engine**
-
-Ещё одно интересное исследование — HiSentinel.
-
-Авторы поставили перед Coding Agent небольшой дополнительный model, который проверяет действие до выполнения.
-
-Для каждого шага он выбирает:
-
-Allow
-
-Redirect
-
-Human Assistance
-
-То есть вместо:
-
-Agent → Action → Error → Recovery
-
-получается:
-
-Agent → Proposed Action → Sentinel → Execute
-
-В экспериментах такой подход повысил completion rate до 14% на одном из benchmark.
-
-Идея особенно интересна для корпоративных платформ.
-
-Например, Sentinel или Policy Layer можно поставить перед:
-
-— git push
-— release/tag
-— удалением файлов
-— database migration
-— production tools
-— использованием secrets
-
-То есть Coding Agent больше не должен одновременно быть и исполнителем, и тем, кто решает, можно ли ему выполнять собственное действие.
-
-⭐ **Практическая ценность:** 4/5
-🧪 **Зрелость:** research / хороший кандидат для пилота
-
-[Исследование — HiSentinel](https://arxiv.org/abs/2609.39957)
+[Open Source — Microsoft MXC](https://github.com/microsoft/mxc)
 
 
 **💡 Что можно попробовать**
 
-**1. Agent Workflow-as-Code**
+**1. Stateless Agent Runtime**
 
-Взять один длинный процесс — например feature implementation или release — и явно описать:
+Хранить состояние задач отдельно от истории Agent.
 
-Spec → Plan → Coding Agent → Tests → Review → Human Gate
+Перед каждым запуском формировать новый контекст из актуальных данных.
 
-Не позволять одному Agent самому придумывать весь lifecycle задачи.
-
-
-**2. MCP Registry**
-
-Перед тем как создавать десятки MCP integrations, завести единый каталог:
-
-Tool → Owner → Permissions → Description → Version → Status
-
-А самим агентам отдавать tools динамически.
+Это позволит менять модели и перезапускать агентов без потери результатов работы.
 
 
-**3. AI Review Gate**
+**2. Agent Registry**
 
-После CI автоматически отправлять MR в AI Code Review.
+Создать единый каталог:
 
-Но использовать его как дополнительный signal перед человеком, а не как автоматическое разрешение merge.
+Agent → Owner → Capabilities → Permissions → Task → Status
 
-
-**4. Repository Grounding**
-
-Перед Coding Agent автоматически собирать:
-
-Relevant Files + APIs + Dependencies + ADR + Existing Tests
-
-И только потом отдавать specification.
+Чтобы понимать, какие агенты работают в проектах и что им разрешено.
 
 
-**5. Pre-execution Policy**
+**3. Component Knowledge Layer**
 
-Начать хотя бы с пяти операций:
+Для компонентов проекта начать формировать:
 
-Deploy
+API + Dependencies + Contracts + Architecture + Tests
 
-Release
+И использовать эти данные при подготовке контекста Coding Agent.
 
-Push
 
-Delete
+**4. Agent Sandbox**
 
-Secrets
+Запускать команды Coding Agent через изолированную среду.
 
-Перед их выполнением Agent должен получить отдельное разрешение policy layer или человека.
+Начать с ограничений filesystem, network и credentials.
+
+
+**5. AI SDLC Outcome Tracking**
+
+Связать:
+
+Jira → Agent Session → MR → CI → Review → Release
+
+И измерять не только количество AI-generated code, но и стоимость, скорость, rework и качество.
 
 
 **Главный вывод недели**
 
-Agentic Development начинает повторять путь обычных production-систем.
+В AI Engineering постепенно формируется довольно важное разделение.
 
-Сначала был один Agent с большим prompt.
+Agent — временный исполнитель.
 
-Теперь вокруг него постепенно появляются:
+Project Knowledge — постоянные знания системы.
 
-Workflow Engine + Context Layer + Tool Gateway + Policy + Observability + Verification + Review
+Workflow — управляемый процесс.
 
-И, похоже, именно качество этой инфраструктуры, а не только выбор модели, будет определять насколько далеко можно безопасно делегировать разработку AI-агентам.
+Policy — ограничения действий.
+
+Verification — независимая проверка результата.
+
+И всё больше похоже на то, что следующая архитектура AI-native SDLC будет выглядеть так:
+
+Project Knowledge → Context Builder → Agent → Policy → Tools → Verification → State Update
+
+**Постоянным должен быть не агент, а инженерный контекст и состояние работы.**
